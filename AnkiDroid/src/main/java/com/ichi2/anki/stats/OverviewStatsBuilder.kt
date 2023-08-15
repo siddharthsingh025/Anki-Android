@@ -20,10 +20,12 @@ import android.webkit.WebView
 import com.ichi2.anki.R.string.*
 import com.ichi2.libanki.Collection
 import com.ichi2.libanki.Consts
+import com.ichi2.libanki.DeckId
 import com.ichi2.libanki.Utils
 import com.ichi2.libanki.stats.Stats
 import com.ichi2.libanki.stats.Stats.AxisType
 import com.ichi2.themes.Themes.getColorFromAttr
+import com.ichi2.utils.toRGBHex
 import java.util.*
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
@@ -31,65 +33,47 @@ import kotlin.math.roundToLong
 /**
  * @param webView for resources access
  */
-class OverviewStatsBuilder(private val webView: WebView, private val col: Collection, private val deckId: Long, private val type: AxisType) {
+class OverviewStatsBuilder(private val webView: WebView, private val col: Collection, private val deckId: DeckId, private val type: AxisType) {
     class OverviewStats {
         var forecastTotalReviews = 0
         var forecastAverageReviews = 0.0
         var forecastDueTomorrow = 0
-        @JvmField
         var reviewsPerDayOnAll = 0.0
-        @JvmField
         var reviewsPerDayOnStudyDays = 0.0
-        @JvmField
         var allDays = 0
-        @JvmField
         var daysStudied = 0
-        @JvmField
         var timePerDayOnAll = 0.0
-        @JvmField
         var timePerDayOnStudyDays = 0.0
-        @JvmField
         var totalTime = 0.0
-        @JvmField
         var totalReviews = 0
-        @JvmField
         var newCardsPerDay = 0.0
-        @JvmField
         var totalNewCards = 0
-        @JvmField
         var averageInterval = 0.0
-        @JvmField
         var longestInterval = 0.0
         lateinit var newCardsOverview: AnswerButtonsOverview
         lateinit var youngCardsOverview: AnswerButtonsOverview
         lateinit var matureCardsOverview: AnswerButtonsOverview
 
-        @JvmField
         var totalCards: Long = 0
-        @JvmField
         var totalNotes: Long = 0
-        @JvmField
         var lowestEase = 0.0
-        @JvmField
         var averageEase = 0.0
-        @JvmField
         var highestEase = 0.0
 
         class AnswerButtonsOverview {
-            @JvmField
             var total = 0
-            @JvmField
             var correct = 0
             val percentage: Double
                 get() = if (correct == 0) {
                     0.0
-                } else correct.toDouble() / total.toDouble() * 100.0
+                } else {
+                    correct.toDouble() / total.toDouble() * 100.0
+                }
         }
     }
 
     fun createInfoHtmlString(): String {
-        val textColorInt = getColorFromAttr(webView.context, R.attr.textColor)
-        val textColor = String.format("#%06X", 0xFFFFFF and textColorInt) // Color to hex string
+        val textColor = getColorFromAttr(webView.context, R.attr.textColor).toRGBHex()
         val css = """
                <style>
                h1, h3 { margin-bottom: 0; margin-top: 1em; text-transform: capitalize; }
@@ -116,7 +100,8 @@ class OverviewStatsBuilder(private val webView: WebView, private val col: Collec
         val daysStudied = res.getString(
             stats_overview_days_studied,
             (oStats.daysStudied.toFloat() / oStats.allDays.toFloat() * 100).toInt(),
-            oStats.daysStudied, oStats.allDays
+            oStats.daysStudied,
+            oStats.allDays
         )
 
         // FORECAST
@@ -210,7 +195,9 @@ class OverviewStatsBuilder(private val webView: WebView, private val col: Collec
         stringBuilder.append(
             res.getQuantityString(
                 com.ichi2.anki.R.plurals.stats_today_cards,
-                todayStats[CARDS_INDEX], todayStats[CARDS_INDEX], span
+                todayStats[CARDS_INDEX],
+                todayStats[CARDS_INDEX],
+                span
             )
         )
         stringBuilder.append("<br>")

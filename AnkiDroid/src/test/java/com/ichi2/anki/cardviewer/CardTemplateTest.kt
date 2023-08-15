@@ -15,14 +15,13 @@
  */
 package com.ichi2.anki.cardviewer
 
+import android.annotation.SuppressLint
 import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
-import com.ichi2.utils.KotlinCleanup
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.*
 import org.intellij.lang.annotations.Language
 import org.junit.Test
 
-@KotlinCleanup("`is`")
 class CardTemplateTest {
     @Test
     fun replaceTest() {
@@ -32,10 +31,11 @@ class CardTemplateTest {
         val cardClass = "baz"
         val script = "script"
         val result = CardTemplate(data).render(content, style, script, cardClass)
-        assertThat(result, `is`(data.replace("::content::", content).replace("::style::", style).replace("::class::", cardClass).replace("::script::", script)))
+        assertThat(result, equalTo(data.replace("::content::", content).replace("::style::", style).replace("::class::", cardClass).replace("::script::", script)))
     }
 
     @Test
+    @SuppressLint("CheckResult") //  .render
     fun stressTest() {
         // At length = 10000000
         // ~500ms before
@@ -53,7 +53,6 @@ class CardTemplateTest {
         <title>AnkiDroid Flashcard</title>
         <meta charset="utf-8">
         <link rel="stylesheet" type="text/css" href="file:///android_asset/flashcard.css">
-        <link rel="stylesheet" type="text/css" href="file:///android_asset/chess.css">
         <link rel="stylesheet" type="text/css" href="file:///android_asset/mathjax/mathjax.css">
         <style>
         ::style::

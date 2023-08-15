@@ -48,13 +48,13 @@
     <string name="youre_offline">Вы па-за сеткай</string>
     <string name="sync_even_if_offline">Усё роўна спрабаваць</string>
     <string name="sync_error">Памылка сінхранізацыі</string>
-    <string name="vague_error">Памылка</string>
+    <string name="vague_error" comment="Network error dialog title">Памылка</string>
     <string name="retry">Паўтарыць</string>
     <string name="menu_get_shared_decks">Атрымаць агульнадаступныя калоды</string>
     <string name="connection_error_message">Узніклі праблемы са злучэннем</string>
     <string name="not_logged_in_title">Увайсці ў AnkiWeb</string>
     <string name="login_create_account_message">Вам неабходна аўтарызавацца ў адным з воблачных сэрвісаў, каб скарыстацца гэтым тыпам сінхранізацыі. Вы можаце зарэгістравацца ў воблачным сэрвісе на наступным кроку.</string>
-    <!-- MyAccount.java -->
+    <!-- MyAccount.kt -->
     <string name="username">Электронная пошта</string>
     <string name="password">Пароль</string>
     <string name="log_in">Увайсці</string>
@@ -68,7 +68,6 @@
     <string name="reset_password">Скінуць пароль</string>
     <string name="lost_mail_instructions">Забылі электронную пошту?</string>
     <!-- AndroidManifest.xml -->
-    <string name="preferences_title">Налады</string>
     <string name="deckpreferences_title">Параметры для XXX</string>
     <string name="sync_prepare_syncing">Падрыхтоўка да сінхранізацыі&#8230;</string>
     <string name="sync_preparing_full_sync_message">Падрыхтоўка да поўнай сінхранізацыі&#8230;</string>
@@ -76,7 +75,12 @@
     <string name="sync_downloading_message">Спампаванне&#8230;</string>
     <string name="sync_title">Сінхранізацыя</string>
     <string name="sync_log_uploading_message">Цалкам сінхранізавана з прыладай</string>
-    <string name="sync_log_clocks_unsynchronized">Гадзіннік на вашай прыладзе паказвае час з памылкай на %1$d секунд %2$s. Пераканайцеся, што дата і часавы пояс прызначаныя слушна і паспрабуйце паўтарыць сінхранізацыю.</string>
+    <plurals name="sync_log_clocks_unsynchronized_new">
+        <item quantity="one">Гадзіннік на вашай прыладзе паказвае час з памылкай на %1$d секунду %2$s. Пераканайцеся, што дата і часавы пояс прызначаныя слушна і паспрабуйце паўтарыць сінхранізацыю.</item>
+        <item quantity="few">Гадзіннік на вашай прыладзе паказвае час з памылкай на %1$d секунды %2$s. Пераканайцеся, што дата і часавы пояс прызначаныя слушна і паспрабуйце паўтарыць сінхранізацыю.</item>
+        <item quantity="many">Гадзіннік на вашай прыладзе паказвае час з памылкай на %1$d секунд %2$s. Пераканайцеся, што дата і часавы пояс прызначаныя слушна і паспрабуйце паўтарыць сінхранізацыю.</item>
+        <item quantity="other">Гадзіннік на вашай прыладзе паказвае час з памылкай на %1$d секунд %2$s. Пераканайцеся, што дата і часавы пояс прызначаныя слушна і паспрабуйце паўтарыць сінхранізацыю.</item>
+    </plurals>
     <string name="sync_log_clocks_unsynchronized_tz">і магчыма, што часавы пояс прызначаны няправільна</string>
     <string name="sync_log_clocks_unsynchronized_date">і магчыма, што дата прызначаная няправільна</string>
     <string name="sync_no_changes_message">Змяненняў не знойдзена</string>
@@ -87,7 +91,7 @@
     <string name="sync_remote_db_error">Спампаваная база даных была пашкоджаная. Калі ласка, паспрабуйце яшчэ раз.</string>
     <string name="sync_overwrite_error">Бягучая калекцыя не можа быць перазапісаная спампаваным файлам</string>
     <string name="sync_connection_error">Скончыўся тэрмін злучэння. Магчыма, што зараз у вас праблемы з падлучэннем да інтэрнэту або ў папцы змешчаны вельмі вялікі медыяфайл.</string>
-    <string name="sync_write_access_error">Спампаваны файл не можа быць захаваны на SD-картку. Магчыма, што яна знаходзіцца ў рэжыме чытанне або на ёй не дастаткова свабоднага месца.</string>
+    <string name="sync_write_access_error_on_storage">Спампаваны файл не можа быць захаваны ў ваша сховішча. Магчыма, што яно знаходзіцца ў рэжыме чытання або на ім недастаткова свабоднага месца.</string>
     <string name="sync_error_invalid_sync_server">Азначаны памылковы карыстальніцкі сервер сінхранізацыя ў дадатковых наладах (%s). Увядзіце, калі ласка, слушных сервер або адключыце гэту функцыю ў наладах.</string>
     <string name="sync_deletions_message">Сінхранізуюцца выдаленыя&#8230;</string>
     <string name="sync_small_objects_message">Сінхранізацыя невялікіх аб\'ектаў&#8230;</string>
@@ -103,9 +107,30 @@
     <string name="sync_media_find">Пошук змененых медыяфайлаў&#8230;</string>
     <string name="sync_media_no_changes">Медыяфайлы не змененыя</string>
     <string name="sync_media_success">Медыяфайлы сінхранізаваныя</string>
-    <string name="sync_media_partial_updated">Сінхранізацыя медыя часткова завершана:\n%1$d - файлаў з медыя спампавана.\n%2$d - файлаў з медыя запампавана.</string>
-    <string name="sync_media_changes_count">Будуць запампаваныя %d змененых медыяфайлаў</string>
-    <string name="sync_media_downloaded_count">%d медыяфайлаў спампавана</string>
+    <plurals name="sync_media_partial_downloaded_files">
+        <item quantity="one">Сінхранізацыя медыя часткова завершана:\n%d медыяфайл спампаваны.</item>
+        <item quantity="few">Сінхранізацыя медыя часткова завершана:\n%d медыяфайлы спампаваны.</item>
+        <item quantity="many">Сінхранізацыя медыя часткова завершана:\n%d медыяфайлаў спампаваны.</item>
+        <item quantity="other">Сінхранізацыя медыя часткова завершана:\n%d медыяфайлаў спампаваны.</item>
+    </plurals>
+    <plurals name="sync_media_partial_uploaded_files">
+        <item quantity="one">%d медыяфайл запампаваны.</item>
+        <item quantity="few">%d медыяфайлы запампаваны.</item>
+        <item quantity="many">%d медыяфайлаў запампаваны.</item>
+        <item quantity="other">%d медыяфайлаў запампаваны.</item>
+    </plurals>
+    <plurals name="sync_media_changes_count_new">
+        <item quantity="one">%d media change to upload</item>
+        <item quantity="few">%d media changes to upload</item>
+        <item quantity="many">%d media changes to upload</item>
+        <item quantity="other">%d media changes to upload</item>
+    </plurals>
+    <plurals name="sync_media_downloaded_count_new">
+        <item quantity="one">%d медыяфайл спампаваны</item>
+        <item quantity="few">%d медыяфайлы спампаваны</item>
+        <item quantity="many">%d медыяфайлаў спампаваны</item>
+        <item quantity="other">%d медыяфайлаў спампаваны</item>
+    </plurals>
     <string name="sync_sanity_failed">Пасля сінхранізацыі з\'явіліся канфлікты ў калекцыі. Праграма AnkiDroid выканае поўную сінхранізацыю, каб вырашыць гэту праблему. Выберыце, якую версію калекцыі вы хочаце пакінуць.</string>
     <string name="sync_media_sanity_failed">Сінхранізацыя завершаная, але колькасць медыяфайлаў на вашай прыладзе і серверы не супадаюць. Наступная сінхранізацыя медыяфайлаў цалкам выправіць усе праблемы.</string>
     <string name="sync_media_db_error">Не атрымалася сінхранізаваць медыяфайлы, бо бягучая база даных пашкоджаная. Пажадана запусціць праверку медыяфайлаў.</string>
@@ -117,6 +142,7 @@
     <string name="sync_sanity_remote">Аддалена</string>
     <string name="force_full_sync_title">Выканаць поўную сінхранізацыю</string>
     <string name="force_full_sync_summary">Падчас наступнай сінхранізацыі перазапісаць змены ў адным кірунку</string>
+    <string name="force_full_sync_confirmation">Поўная прымусовая сінхранізацыя</string>
     <string name="full_sync_confirmation">Выбраныя змяненні патрабуюць поўнай запампоўкі базы даных падчас наступнай сінхранізацыі вашай калекцыі. Калі на іншай прыладзе вы паўтаралі нейкія карткі або ў вас былі іншыя змены і яны не былі сінхранізаваныя, то яны будуць страчаныя. Працягнуць?</string>
     <string name="full_sync_confirmation_upgrade">З-за памылкі ў папярэдняй версіі праграмы, пажадана зрабіць поўную сінхранізацыю.</string>
     <string name="sync_error_407_proxy_required">Патрабуецца праверка сапраўднасці проксі-сервера.</string>

@@ -21,18 +21,19 @@ import androidx.test.core.app.ApplicationProvider.getApplicationContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.anki.RobolectricTest
 import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
-import com.ichi2.testutils.assertThrows
 import com.ichi2.testutils.createTransientFile
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.After
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.test.assertFailsWith
 
 @RunWith(AndroidJUnit4::class)
 class StorageLockingTest : RobolectricTest() {
 
     private var toCleanup: Collection? = null
+
     @After
     fun after() {
         toCleanup?.close()
@@ -47,15 +48,15 @@ class StorageLockingTest : RobolectricTest() {
     @Test
     fun open_fails_if_locked() {
         Storage.lockCollection()
-        assertThrows<SQLiteDatabaseLockedException> { successfulOpen() }
+        assertFailsWith<SQLiteDatabaseLockedException> { successfulOpen() }
     }
 
     @Test
     fun lock_sets_value() {
         Storage.lockCollection()
-        assertThat("locking the collection sets isLocked", Storage.isLocked(), equalTo(true))
+        assertThat("locking the collection sets isLocked", Storage.isLocked, equalTo(true))
         Storage.unlockCollection()
-        assertThat("unlocking the collection sets isLocked", Storage.isLocked(), equalTo(false))
+        assertThat("unlocking the collection sets isLocked", Storage.isLocked, equalTo(false))
     }
 
     @Test
@@ -75,11 +76,11 @@ class StorageLockingTest : RobolectricTest() {
 
     @Test
     fun collection_unlocked_by_default() {
-        assertThat("by default, collection should be unlocked", Storage.isLocked(), equalTo(false))
+        assertThat("by default, collection should be unlocked", Storage.isLocked, equalTo(false))
     }
 
     /** Opens a valid collection */
     private fun successfulOpen() {
-        toCleanup = Storage.Collection(getApplicationContext(), createTransientFile(extension = "anki2").path)
+        toCleanup = Storage.collection(getApplicationContext(), createTransientFile(extension = "anki2").path)
     }
 }

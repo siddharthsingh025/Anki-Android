@@ -30,6 +30,7 @@ class SearchService {
 
         @get:JvmName("hasResult")
         val hasResult = result != null
+
         @get:JvmName("hasError")
         val hasError = error != null
         fun size() = result?.size ?: 0
@@ -37,7 +38,7 @@ class SearchService {
         companion object {
             @RustCleanup("error checking")
             @RustCleanup("i18n - we use an error message from the Rust")
-            @JvmStatic fun error(e: Exception): SearchCardsResult {
+            fun error(e: Exception): SearchCardsResult {
                 if (e !is InvalidSearchException) {
                     // temporary check to see we haven't missed a backend exception
                     CrashReportService.sendExceptionReport(e, "unexpected error type")
@@ -45,8 +46,8 @@ class SearchService {
                 val error = e.localizedMessage?.replace("net.ankiweb.rsdroid.exceptions.BackendInvalidInputException: ", "")
                 return SearchCardsResult(null, error)
             }
-            @JvmStatic fun success(result: List<CardBrowser.CardCache>) = SearchCardsResult(result, null)
-            @JvmStatic fun invalidResult() = SearchCardsResult(null, null)
+            fun success(result: List<CardBrowser.CardCache>) = SearchCardsResult(result, null)
+            fun invalidResult() = SearchCardsResult(null, null)
         }
     }
 }

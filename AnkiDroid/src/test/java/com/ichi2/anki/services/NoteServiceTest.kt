@@ -22,6 +22,7 @@ import com.ichi2.anki.multimediacard.fields.ImageField
 import com.ichi2.anki.multimediacard.fields.MediaClipField
 import com.ichi2.anki.servicelayer.NoteService
 import com.ichi2.libanki.Collection
+import com.ichi2.libanki.Consts
 import com.ichi2.libanki.Model
 import com.ichi2.libanki.Note
 import com.ichi2.testutils.createTransientFile
@@ -39,26 +40,22 @@ import java.io.File
 import java.io.FileWriter
 import java.io.IOException
 
-@KotlinCleanup("See if we can remove JvmField from Rule")
 @KotlinCleanup("have Model constructor accent @Language('JSON')")
-@KotlinCleanup("fix typo: testimage -> test_image")
-@KotlinCleanup("Add scope functions")
 @RunWith(AndroidJUnit4::class)
 class NoteServiceTest : RobolectricTest() {
     @KotlinCleanup("lateinit")
     var testCol: Collection? = null
+
     @Before
     fun before() {
         testCol = col
     }
 
     // temporary directory to test importMediaToDirectory function
-    @Rule
-    @JvmField
+    @get:Rule
     var directory = TemporaryFolder()
 
-    @Rule
-    @JvmField
+    @get:Rule
     var directory2 = TemporaryFolder()
 
     // tests if the text fields of the notes are the same after calling updateJsonNoteFromMultimediaNote
@@ -69,9 +66,10 @@ class NoteServiceTest : RobolectricTest() {
         multiMediaNote!!.getField(0)!!.text = "foo"
         multiMediaNote.getField(1)!!.text = "bar"
 
-        val basicNote = Note(testCol!!, testModel)
-        basicNote.setField(0, "this should be changed to foo")
-        basicNote.setField(1, "this should be changed to bar")
+        val basicNote = Note(testCol!!, testModel).apply {
+            setField(0, "this should be changed to foo")
+            setField(1, "this should be changed to bar")
+        }
 
         NoteService.updateJsonNoteFromMultimediaNote(multiMediaNote, basicNote)
         assertEquals(basicNote.fields[0], multiMediaNote.getField(0)!!.text)
@@ -114,19 +112,19 @@ class NoteServiceTest : RobolectricTest() {
     @Test
     @Throws(IOException::class)
     fun importImageToDirectoryTest() {
-        val fileImage = directory.newFile("testimage.png")
+        val fileImage = directory.newFile("test_image.png")
 
         // writes a line in the file so the file's length isn't 0
         FileWriter(fileImage).use { fileWriter -> fileWriter.write("line1") }
 
         val imgField = ImageField()
-        imgField.imagePath = fileImage.absolutePath
+        imgField.extraImagePathRef = fileImage.absolutePath
 
         NoteService.importMediaToDirectory(testCol!!, imgField)
 
         val outFile = File(testCol!!.media.dir(), fileImage.name)
 
-        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", outFile, aFileWithAbsolutePath(equalTo(imgField.imagePath)))
+        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", outFile, aFileWithAbsolutePath(equalTo(imgField.extraImagePathRef)))
     }
 
     /**
@@ -186,14 +184,14 @@ class NoteServiceTest : RobolectricTest() {
         FileWriter(f2).use { fileWriter -> fileWriter.write("2") }
 
         val fld1 = ImageField()
-        fld1.imagePath = f1.absolutePath
+        fld1.extraImagePathRef = f1.absolutePath
 
         val fld2 = ImageField()
-        fld2.imagePath = f2.absolutePath
+        fld2.extraImagePathRef = f2.absolutePath
 
         // third field to test if name is kept after reimporting the same file
         val fld3 = ImageField()
-        fld3.imagePath = f1.absolutePath
+        fld3.extraImagePathRef = f1.absolutePath
 
         NoteService.importMediaToDirectory(testCol!!, fld1)
         val o1 = File(testCol!!.media.dir(), f1.name)
@@ -204,9 +202,9 @@ class NoteServiceTest : RobolectricTest() {
         NoteService.importMediaToDirectory(testCol!!, fld3)
         // creating a third outfile isn't necessary because it should be equal to the first one
 
-        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", o1, aFileWithAbsolutePath(equalTo(fld1.imagePath)))
-        assertThat("path should be different to new file made in NoteService.importMediaToDirectory", o2, aFileWithAbsolutePath(not(fld2.imagePath)))
-        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", o1, aFileWithAbsolutePath(equalTo(fld3.imagePath)))
+        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", o1, aFileWithAbsolutePath(equalTo(fld1.extraImagePathRef)))
+        assertThat("path should be different to new file made in NoteService.importMediaToDirectory", o2, aFileWithAbsolutePath(not(fld2.extraImagePathRef)))
+        assertThat("path should be equal to new file made in NoteService.importMediaToDirectory", o1, aFileWithAbsolutePath(equalTo(fld3.extraImagePathRef)))
     }
 
     /**
@@ -218,9 +216,10 @@ class NoteServiceTest : RobolectricTest() {
     fun tempAudioIsDeletedAfterImport() {
         val file = createTransientFile("foo")
 
-        val field = MediaClipField()
-        field.audioPath = file.absolutePath
-        field.setHasTemporaryMedia(true)
+        val field = MediaClipField().apply {
+            audioPath = file.absolutePath
+            hasTemporaryMedia = true
+        }
 
         NoteService.importMediaToDirectory(testCol!!, field)
 
@@ -232,12 +231,83 @@ class NoteServiceTest : RobolectricTest() {
     fun tempImageIsDeletedAfterImport() {
         val file = createTransientFile("foo")
 
-        val field = ImageField()
-        field.imagePath = file.absolutePath
-        field.setHasTemporaryMedia(true)
+        val field = ImageField().apply {
+            extraImagePathRef = file.absolutePath
+            hasTemporaryMedia = true
+        }
 
         NoteService.importMediaToDirectory(testCol!!, field)
 
         assertThat("Image temporary file should have been deleted after importing", file, not(anExistingFile()))
+    }
+
+    @Test
+    fun testAvgEase() {
+        // basic case: no cards are new
+        val note = addNoteUsingModelName("Cloze", "{{c1::Hello}}{{c2::World}}{{c3::foo}}{{c4::bar}}", "extra")
+        // factor for cards: 3000, 1500, 1000, 750
+        for ((i, card) in note.cards().withIndex()) {
+            card.apply {
+                type = Consts.CARD_TYPE_REV
+                factor = 3000 / (i + 1)
+                flush()
+            }
+        }
+        // avg ease = (3000/10 + 1500/10 + 100/10 + 750/10) / 4 = [156.25] = 156
+        assertEquals(156, NoteService.avgEase(note))
+
+        // test case: one card is new
+        note.cards()[2].apply {
+            type = Consts.CARD_TYPE_NEW
+            flush()
+        }
+        // avg ease = (3000/10 + 1500/10 + 750/10) / 3 = [175] = 175
+        assertEquals(175, NoteService.avgEase(note))
+
+        // test case: all cards are new
+        for (card in note.cards()) {
+            card.type = Consts.CARD_TYPE_NEW
+            card.flush()
+        }
+        // no cards are rev, so avg ease cannot be calculated
+        assertEquals(null, NoteService.avgEase(note))
+    }
+
+    @Test
+    fun testAvgInterval() {
+        // basic case: all cards are relearning or review
+        val note = addNoteUsingModelName("Cloze", "{{c1::Hello}}{{c2::World}}{{c3::foo}}{{c4::bar}}", "extra")
+        val reviewOrRelearningList = listOf(Consts.CARD_TYPE_REV, Consts.CARD_TYPE_RELEARNING)
+        val newOrLearningList = listOf(Consts.CARD_TYPE_NEW, Consts.CARD_TYPE_LRN)
+
+        // interval for cards: 3000, 1500, 1000, 750
+        for ((i, card) in note.cards().withIndex()) {
+            card.apply {
+                type = reviewOrRelearningList.shuffled().first()
+                ivl = 3000 / (i + 1)
+                flush()
+            }
+        }
+
+        // avg interval = (3000 + 1500 + 1000 + 750) / 4 = [1562.5] = 1562
+        assertEquals(1562, NoteService.avgInterval(note))
+
+        // case: one card is new or learning
+        note.cards()[2].apply {
+            type = newOrLearningList.shuffled().first()
+            flush()
+        }
+
+        // avg interval = (3000 + 1500 + 750) / 3 = [1750] = 1750
+        assertEquals(1750, NoteService.avgInterval(note))
+
+        // case: all cards are new or learning
+        for (card in note.cards()) {
+            card.type = newOrLearningList.shuffled().first()
+            card.flush()
+        }
+
+        // no cards are rev or relearning, so avg interval cannot be calculated
+        assertEquals(null, NoteService.avgInterval(note))
     }
 }

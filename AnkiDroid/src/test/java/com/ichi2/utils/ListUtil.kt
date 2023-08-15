@@ -16,26 +16,23 @@
 package com.ichi2.utils
 
 import org.junit.Assert
-import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.internal.ArrayComparisonFailure
 import java.lang.AssertionError
-import java.util.*
 import kotlin.Throws
+import kotlin.test.assertFailsWith
 
 class ListUtil {
     @Test
-    @KotlinCleanup("Use Kotlin's methods instead of Arrays.asList")
-    @KotlinCleanup("Use AnkiAssert.assertThrows<>")
-    fun EqualsTest() {
-        assertThrows(ArrayComparisonFailure::class.java) { assertListEquals(Arrays.asList(2L, 3L), Arrays.asList(2L, 4L)) }
-        assertThrows(ArrayComparisonFailure::class.java) { assertListEquals(Arrays.asList(2L, 3L), Arrays.asList(2L)) }
-        assertThrows(ArrayComparisonFailure::class.java) { assertListEquals(Arrays.asList(2L, 3L), Arrays.asList(5L)) }
-        assertThrows(ArrayComparisonFailure::class.java) { assertListEquals(Arrays.asList(2L, 3L), Arrays.asList(2L, 3L, 5L)) }
-        assertThrows(AssertionError::class.java) { assertListEquals(Arrays.asList(2L, 3L), null) }
-        assertThrows(AssertionError::class.java) { assertListEquals(null, Arrays.asList(2L, 4L)) }
+    fun equalsTest() {
+        assertFailsWith<ArrayComparisonFailure> { assertListEquals(listOf(2L, 3L), listOf(2L, 4L)) }
+        assertFailsWith<ArrayComparisonFailure> { assertListEquals(listOf(2L, 3L), listOf(2L)) }
+        assertFailsWith<ArrayComparisonFailure> { assertListEquals(listOf(2L, 3L), listOf(5L)) }
+        assertFailsWith<ArrayComparisonFailure> { assertListEquals(listOf(2L, 3L), listOf(2L, 3L, 5L)) }
+        assertFailsWith<AssertionError> { assertListEquals(listOf(2L, 3L), null) }
+        assertFailsWith<AssertionError> { assertListEquals(null, listOf(2L, 4L)) }
         assertListEquals(null, null)
-        assertListEquals(Arrays.asList(2L, 3L), Arrays.asList(2L, 3L))
+        assertListEquals(listOf(2L, 3L), listOf(2L, 3L))
     }
 
     companion object {
@@ -47,7 +44,7 @@ class ListUtil {
          *
          * @param message the identifying message for the [AssertionError] (`null`
          * okay)
-         * @param expecteds Object list or list of arrays (multi-dimensional array) with
+         * @param expected Object list or list of arrays (multi-dimensional array) with
          * expected values.
          * @param actuals Object list or list of arrays (multi-dimensional array) with
          * actual values
@@ -55,12 +52,12 @@ class ListUtil {
         @Throws(ArrayComparisonFailure::class)
         fun assertListEquals(
             message: String?,
-            expecteds: List<Any>?,
-            actuals: List<Any>?
+            expected: List<Any?>?,
+            actuals: List<Any?>?
         ) {
-            val expecteds_array: Array<Any>? = expecteds?.toTypedArray()
-            val actuals_array: Array<Any>? = actuals?.toTypedArray()
-            Assert.assertArrayEquals(message, expecteds_array, actuals_array)
+            val expectedArray: Array<Any?>? = expected?.toTypedArray()
+            val actualArray: Array<Any?>? = actuals?.toTypedArray()
+            Assert.assertArrayEquals(message, expectedArray, actualArray)
         }
 
         /**
@@ -69,14 +66,13 @@ class ListUtil {
          * `actual` are `null`, they are considered
          * equal.
          *
-         * @param expecteds Object list or list of arrays (multi-dimensional array) with
+         * @param expected Object list or list of arrays (multi-dimensional array) with
          * expected values
          * @param actuals Object list or list of arrays (multi-dimensional array) with
          * actual values
          */
-        @JvmStatic
-        fun assertListEquals(expecteds: List<Any>?, actuals: List<Any>?) {
-            assertListEquals(null, expecteds, actuals)
+        fun assertListEquals(expected: List<Any?>?, actuals: List<Any?>?) {
+            assertListEquals(null, expected, actuals)
         }
     }
 }

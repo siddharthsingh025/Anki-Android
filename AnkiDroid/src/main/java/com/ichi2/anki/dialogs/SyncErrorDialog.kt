@@ -16,168 +16,149 @@
 
 package com.ichi2.anki.dialogs
 
+import android.app.Dialog
 import android.net.Uri
 import android.os.Bundle
 import android.os.Message
-import com.afollestad.materialdialogs.DialogAction
-import com.afollestad.materialdialogs.MaterialDialog
+import androidx.appcompat.app.AlertDialog
+import androidx.core.os.bundleOf
 import com.ichi2.anki.AnkiActivity
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.R
+import com.ichi2.anki.joinSyncMessages
 import com.ichi2.async.Connection.ConflictResolution
 import com.ichi2.libanki.CollectionGetter
-import com.ichi2.utils.contentNullable
 
 class SyncErrorDialog : AsyncDialogFragment() {
     interface SyncErrorDialogListener : CollectionGetter {
         fun showSyncErrorDialog(dialogType: Int)
         fun showSyncErrorDialog(dialogType: Int, message: String?)
         fun loginToSyncServer()
-        fun sync()
-        fun sync(conflict: ConflictResolution?)
+        fun sync(conflict: ConflictResolution? = null)
         fun mediaCheck()
         fun dismissAllDialogFragments()
         fun integrityCheck()
     }
 
-    override fun onCreateDialog(savedInstanceState: Bundle?): MaterialDialog {
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         super.onCreate(savedInstanceState)
-        val builder = MaterialDialog.Builder(requireActivity())
-            .title(title)
-            .contentNullable(message)
-            .cancelable(true)
+        val dialog = AlertDialog.Builder(requireContext())
+            .setTitle(title)
+            .setMessage(message)
         return when (requireArguments().getInt("dialogType")) {
             DIALOG_USER_NOT_LOGGED_IN_SYNC -> {
-
                 // User not logged in; take them to login screen
-                builder.iconAttr(R.attr.dialogSyncErrorIcon)
-                    .positiveText(res().getString(R.string.log_in))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? -> (activity as SyncErrorDialogListener?)!!.loginToSyncServer() }
-                    .show()
+                dialog.setIconAttribute(R.attr.dialogSyncErrorIcon)
+                    .setPositiveButton(R.string.log_in) { _, _ ->
+                        (activity as SyncErrorDialogListener).loginToSyncServer()
+                    }
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_CONNECTION_ERROR -> {
-
                 // Connection error; allow user to retry or cancel
-                builder.iconAttr(R.attr.dialogSyncErrorIcon)
-                    .positiveText(res().getString(R.string.retry))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)!!.sync()
+                dialog.setIconAttribute(R.attr.dialogSyncErrorIcon)
+                    .setPositiveButton(R.string.retry) { _, _ ->
+                        (activity as SyncErrorDialogListener).sync()
                         dismissAllDialogFragments()
                     }
-                    .onNegative { _: MaterialDialog?, _: DialogAction? -> dismissAllDialogFragments() }
-                    .show()
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ ->
+                        dismissAllDialogFragments()
+                    }
+                    .create()
             }
             DIALOG_SYNC_CONFLICT_RESOLUTION -> {
-
                 // Sync conflict; allow user to cancel, or choose between local and remote versions
-                builder.iconAttr(R.attr.dialogSyncErrorIcon)
-                    .positiveText(res().getString(R.string.sync_conflict_keep_local_new))
-                    .negativeText(res().getString(R.string.sync_conflict_keep_remote_new))
-                    .neutralText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
+                dialog.setIconAttribute(R.attr.dialogSyncErrorIcon)
+                    .setPositiveButton(R.string.sync_conflict_keep_local_new) { _, _ ->
                         (activity as SyncErrorDialogListener?)
                             ?.showSyncErrorDialog(DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL)
                     }
-                    .onNegative { _: MaterialDialog?, _: DialogAction? ->
+                    .setNegativeButton(R.string.sync_conflict_keep_remote_new) { _, _ ->
                         (activity as SyncErrorDialogListener?)
                             ?.showSyncErrorDialog(DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE)
                     }
-                    .onNeutral { _: MaterialDialog?, _: DialogAction? -> dismissAllDialogFragments() }
-                    .show()
+                    .setNeutralButton(R.string.dialog_cancel) { _, _ ->
+                        dismissAllDialogFragments()
+                    }
+                    .create()
             }
             DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL -> {
-
                 // Confirmation before pushing local collection to server after sync conflict
-                builder.iconAttr(R.attr.dialogSyncErrorIcon)
-                    .positiveText(res().getString(R.string.dialog_positive_replace))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
+                dialog.setIconAttribute(R.attr.dialogSyncErrorIcon)
+                    .setPositiveButton(R.string.dialog_positive_replace) { _, _ ->
                         val activity = activity as SyncErrorDialogListener?
                         activity!!.sync(ConflictResolution.FULL_UPLOAD)
                         dismissAllDialogFragments()
                     }
-                    .show()
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE -> {
-
                 // Confirmation before overwriting local collection with server collection after sync conflict
-                builder.iconAttr(R.attr.dialogSyncErrorIcon)
-                    .positiveText(res().getString(R.string.dialog_positive_replace))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
+                dialog.setIconAttribute(R.attr.dialogSyncErrorIcon)
+                    .setPositiveButton(R.string.dialog_positive_replace) { _, _ ->
                         val activity = activity as SyncErrorDialogListener?
                         activity!!.sync(ConflictResolution.FULL_DOWNLOAD)
                         dismissAllDialogFragments()
                     }
-                    .show()
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_SYNC_SANITY_ERROR -> {
-
                 // Sync sanity check error; allow user to cancel, or choose between local and remote versions
-                builder.positiveText(res().getString(R.string.sync_sanity_local))
-                    .neutralText(res().getString(R.string.sync_sanity_remote))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)
-                            ?.showSyncErrorDialog(DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_LOCAL)
-                    }
-                    .onNeutral { _: MaterialDialog?, _: DialogAction? ->
+                dialog.setPositiveButton(R.string.sync_sanity_local) { _, _ ->
+                    (activity as SyncErrorDialogListener?)
+                        ?.showSyncErrorDialog(DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_LOCAL)
+                }
+                    .setNeutralButton(R.string.sync_sanity_remote) { _, _ ->
                         (activity as SyncErrorDialogListener?)
                             ?.showSyncErrorDialog(DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_REMOTE)
                     }
-                    .show()
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_LOCAL -> {
-
                 // Confirmation before pushing local collection to server after sanity check error
-                builder.positiveText(res().getString(R.string.dialog_positive_replace))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)!!.sync(ConflictResolution.FULL_UPLOAD)
-                        dismissAllDialogFragments()
-                    }
-                    .show()
+                dialog.setPositiveButton(R.string.dialog_positive_replace) { _, _ ->
+                    (activity as SyncErrorDialogListener).sync(ConflictResolution.FULL_UPLOAD)
+                    dismissAllDialogFragments()
+                }
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_REMOTE -> {
-
                 // Confirmation before overwriting local collection with server collection after sanity check error
-                builder.positiveText(res().getString(R.string.dialog_positive_replace))
-                    .negativeText(res().getString(R.string.dialog_cancel))
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)!!.sync(ConflictResolution.FULL_DOWNLOAD)
-                        dismissAllDialogFragments()
-                    }
-                    .show()
+                dialog.setPositiveButton(R.string.dialog_positive_replace) { _, _ ->
+                    (activity as SyncErrorDialogListener).sync(ConflictResolution.FULL_DOWNLOAD)
+                    dismissAllDialogFragments()
+                }
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_MEDIA_SYNC_ERROR -> {
-                builder.positiveText(R.string.check_media)
-                    .negativeText(R.string.dialog_cancel)
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)!!.mediaCheck()
-                        dismissAllDialogFragments()
-                    }
-                    .show()
+                dialog.setPositiveButton(R.string.check_media) { _, _ ->
+                    (activity as SyncErrorDialogListener).mediaCheck()
+                    dismissAllDialogFragments()
+                }
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             DIALOG_SYNC_CORRUPT_COLLECTION -> {
-                builder.positiveText(R.string.dialog_ok)
-                    .neutralText(R.string.help)
-                    .onNeutral { _: MaterialDialog?,
-                        _: DialogAction? ->
+                dialog.setPositiveButton(R.string.dialog_ok) { _, _ -> }
+                    .setNegativeButton(R.string.help) { _, _ ->
                         (requireActivity() as AnkiActivity).openUrl(Uri.parse(getString(R.string.repair_deck)))
                     }
-                    .cancelable(false)
-                    .show()
+                    .setCancelable(false)
+                    .create()
             }
             DIALOG_SYNC_BASIC_CHECK_ERROR -> {
-                builder.positiveText(R.string.check_db)
-                    .negativeText(R.string.dialog_cancel)
-                    .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                        (activity as SyncErrorDialogListener?)!!.integrityCheck()
-                        dismissAllDialogFragments()
-                    }
-                    .show()
+                dialog.setPositiveButton(R.string.check_db) { _, _ ->
+                    (activity as SyncErrorDialogListener).integrityCheck()
+                    dismissAllDialogFragments()
+                }
+                    .setNegativeButton(R.string.dialog_cancel) { _, _ -> }
+                    .create()
             }
             else -> null!!
         }
@@ -185,10 +166,10 @@ class SyncErrorDialog : AsyncDialogFragment() {
 
     private val title: String
         get() = when (requireArguments().getInt("dialogType")) {
-            DIALOG_USER_NOT_LOGGED_IN_SYNC -> res().getString(R.string.not_logged_in_title)
-            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL, DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE -> res().getString(R.string.sync_conflict_replace_title)
-            DIALOG_SYNC_CONFLICT_RESOLUTION -> res().getString(R.string.sync_conflict_title_new)
-            else -> res().getString(R.string.sync_error)
+            DIALOG_USER_NOT_LOGGED_IN_SYNC -> resources.getString(R.string.not_logged_in_title)
+            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL, DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE -> resources.getString(R.string.sync_conflict_replace_title)
+            DIALOG_SYNC_CONFLICT_RESOLUTION -> resources.getString(R.string.sync_conflict_title_new)
+            else -> resources.getString(R.string.sync_error)
         }
 
     /**
@@ -196,24 +177,27 @@ class SyncErrorDialog : AsyncDialogFragment() {
      *
      * @return tile to be shown in notification in bar
      */
-    override fun getNotificationTitle(): String {
-        return if (requireArguments().getInt("dialogType") == DIALOG_USER_NOT_LOGGED_IN_SYNC) {
-            res().getString(R.string.sync_error)
-        } else title
-    }
+    override val notificationTitle: String
+        get() {
+            return if (requireArguments().getInt("dialogType") == DIALOG_USER_NOT_LOGGED_IN_SYNC) {
+                resources.getString(R.string.sync_error)
+            } else {
+                title
+            }
+        }
 
     private val message: String?
         get() = when (requireArguments().getInt("dialogType")) {
-            DIALOG_USER_NOT_LOGGED_IN_SYNC -> res().getString(R.string.login_create_account_message)
-            DIALOG_CONNECTION_ERROR -> res().getString(R.string.connection_error_message)
-            DIALOG_SYNC_CONFLICT_RESOLUTION -> res().getString(R.string.sync_conflict_message_new)
-            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL, DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_LOCAL -> res().getString(R.string.sync_conflict_local_confirm_new)
-            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE, DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_REMOTE -> res().getString(R.string.sync_conflict_remote_confirm_new)
+            DIALOG_USER_NOT_LOGGED_IN_SYNC -> resources.getString(R.string.login_create_account_message)
+            DIALOG_CONNECTION_ERROR -> resources.getString(R.string.connection_error_message)
+            DIALOG_SYNC_CONFLICT_RESOLUTION -> resources.getString(R.string.sync_conflict_message_new)
+            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_LOCAL, DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_LOCAL -> resources.getString(R.string.sync_conflict_local_confirm_new)
+            DIALOG_SYNC_CONFLICT_CONFIRM_KEEP_REMOTE, DIALOG_SYNC_SANITY_ERROR_CONFIRM_KEEP_REMOTE -> resources.getString(R.string.sync_conflict_remote_confirm_new)
             DIALOG_SYNC_CORRUPT_COLLECTION -> {
                 val syncMessage = requireArguments().getString("dialogMessage")
                 val repairUrl = getString(R.string.repair_deck)
                 val dialogMessage = getString(R.string.sync_corrupt_database, repairUrl)
-                DeckPicker.joinSyncMessages(dialogMessage, syncMessage)
+                joinSyncMessages(dialogMessage, syncMessage)
             }
             else -> requireArguments().getString("dialogMessage")
         }
@@ -223,24 +207,24 @@ class SyncErrorDialog : AsyncDialogFragment() {
      *
      * @return message to be shown in notification in bar
      */
-    override fun getNotificationMessage(): String? {
-        return if (requireArguments().getInt("dialogType") == DIALOG_USER_NOT_LOGGED_IN_SYNC) {
-            res().getString(R.string.not_logged_in_title)
-        } else message
-    }
+    override val notificationMessage: String?
+        get() {
+            return if (requireArguments().getInt("dialogType") == DIALOG_USER_NOT_LOGGED_IN_SYNC) {
+                resources.getString(R.string.not_logged_in_title)
+            } else {
+                message
+            }
+        }
 
-    override fun getDialogHandlerMessage(): Message {
-        val msg = Message.obtain()
-        msg.what = DialogHandler.MSG_SHOW_SYNC_ERROR_DIALOG
-        val b = Bundle()
-        b.putInt("dialogType", requireArguments().getInt("dialogType"))
-        b.putString("dialogMessage", requireArguments().getString("dialogMessage"))
-        msg.data = b
-        return msg
-    }
+    override val dialogHandlerMessage: SyncErrorDialogMessageHandler
+        get() {
+            val dialogType = requireArguments().getInt("dialogType")
+            val dialogMessage = requireArguments().getString("dialogMessage")
+            return SyncErrorDialogMessageHandler(dialogType, dialogMessage)
+        }
 
     fun dismissAllDialogFragments() {
-        (activity as SyncErrorDialogListener?)!!.dismissAllDialogFragments()
+        (activity as SyncErrorDialogListener).dismissAllDialogFragments()
     }
 
     companion object {
@@ -262,7 +246,6 @@ class SyncErrorDialog : AsyncDialogFragment() {
          * @param dialogType An integer which specifies which of the sub-dialogs to show
          * @param dialogMessage A string which can be optionally used to set the dialog message
          */
-        @JvmStatic
         fun newInstance(dialogType: Int, dialogMessage: String?): SyncErrorDialog {
             val f = SyncErrorDialog()
             val args = Bundle()
@@ -270,6 +253,31 @@ class SyncErrorDialog : AsyncDialogFragment() {
             args.putString("dialogMessage", dialogMessage)
             f.arguments = args
             return f
+        }
+    }
+
+    class SyncErrorDialogMessageHandler(
+        private val dialogType: Int,
+        private val dialogMessage: String?
+    ) : DialogHandlerMessage(WhichDialogHandler.MSG_SHOW_SYNC_ERROR_DIALOG, "SyncErrorDialog") {
+        override fun handleAsyncMessage(deckPicker: DeckPicker) {
+            deckPicker.showSyncErrorDialog(dialogType, dialogMessage)
+        }
+
+        override fun toMessage(): Message = Message.obtain().apply {
+            what = this@SyncErrorDialogMessageHandler.what
+            data = bundleOf(
+                "dialogType" to dialogType,
+                "dialogMessage" to dialogMessage
+            )
+        }
+
+        companion object {
+            fun fromMessage(message: Message): SyncErrorDialogMessageHandler {
+                val dialogType = message.data.getInt("dialogType")
+                val dialogMessage = message.data.getString("dialogMessage")
+                return SyncErrorDialogMessageHandler(dialogType, dialogMessage)
+            }
         }
     }
 }

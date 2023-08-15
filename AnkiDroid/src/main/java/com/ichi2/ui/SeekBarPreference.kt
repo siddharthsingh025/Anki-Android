@@ -20,7 +20,8 @@ import android.widget.TextView
 import androidx.annotation.StringRes
 import com.ichi2.anki.AnkiDroidApp
 
-@Suppress("deprecation") // TODO Tracked in https://github.com/ankidroid/Anki-Android/issues/5019 see: SeekBarPreferenceCompat
+// Note: the IDE marks this class as unused although it is used in DeckOptionsActivity
+@Suppress("deprecation", "unused") // TODO Tracked in https://github.com/ankidroid/Anki-Android/issues/5019 see: SeekBarPreferenceCompat
 class SeekBarPreference(context: Context, attrs: AttributeSet) : android.preference.DialogPreference(context, attrs), OnSeekBarChangeListener {
     private lateinit var mSeekLine: LinearLayout
     private lateinit var mSeekBar: SeekBar
@@ -150,7 +151,8 @@ class SeekBarPreference(context: Context, attrs: AttributeSet) : android.prefere
     fun getLayoutParams(weight: Float): LinearLayout.LayoutParams {
         return LinearLayout.LayoutParams(
             LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT, weight
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            weight
         )
     }
 

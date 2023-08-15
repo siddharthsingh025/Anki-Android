@@ -21,9 +21,8 @@ import com.ichi2.anki.CrashReportService
 import com.ichi2.anki.R
 import com.ichi2.anki.servicelayer.SchedulerService.NextCard
 import com.ichi2.libanki.*
-import com.ichi2.libanki.Consts.BUTTON_TYPE
 import com.ichi2.libanki.UndoAction.Companion.revertCardToProvidedState
-import com.ichi2.libanki.UndoAction.UNDO_NAME_ID
+import com.ichi2.libanki.UndoAction.UndoNameId
 import com.ichi2.utils.Computation
 import timber.log.Timber
 import java.util.*
@@ -45,6 +44,7 @@ class SchedulerService {
      */
     class NextCard<out T>(private val card: Card?, val result: T) {
         fun hasNoMoreCards(): Boolean = card == null
+
         /** Returns the next scheduled card
          * Only call if noMoreCards returns false */
         fun nextScheduledCard(): Card = card!!
@@ -67,17 +67,6 @@ class SchedulerService {
                 newCard?.render_output(true)
                 return Computation.ok(NextCard.withNoResult(newCard))
             }
-        }
-    }
-
-    class AnswerAndGetCard(
-        private val oldCard: Card,
-        @BUTTON_TYPE private val ease: Int
-    ) : ActionAndNextCard() {
-        override fun execute(): ComputeResult {
-            Timber.i("Answering card %d", oldCard.id)
-            col.sched.answerCard(oldCard, ease)
-            return GetCard.getCard(this)
         }
     }
 
@@ -200,7 +189,11 @@ class SchedulerService {
         }
     }
 
-    class UndoRepositionRescheduleResetCards(@StringRes @UNDO_NAME_ID undoNameId: Int, private val cardsCopied: Array<Card>) : UndoAction(undoNameId) {
+    class UndoRepositionRescheduleResetCards(
+        @StringRes @UndoNameId
+        undoNameId: Int,
+        private val cardsCopied: Array<Card>
+    ) : UndoAction(undoNameId) {
         override fun undo(col: AnkiCollection): Card? {
             Timber.i("Undoing action of type %s on %d cards", javaClass, cardsCopied.size)
             for (card in cardsCopied) {
@@ -217,13 +210,13 @@ class SchedulerService {
     companion object {
         fun <T> ActionAndNextCardV<T>.computeThenGetNextCardInTransaction(task: (AnkiCollection) -> T): Computation<NextCard<T>> {
             return try {
-                val maybeNextCard = col.db.executeInTransactionReturn {
+                val maybeNextCard = col.db.executeInTransaction {
                     col.sched.deferReset()
                     val result = task(col)
                     // With sHadCardQueue set, getCard() resets the scheduler prior to getting the next card
                     val maybeNextCard = col.sched.card
 
-                    return@executeInTransactionReturn NextCard(maybeNextCard, result)
+                    return@executeInTransaction NextCard(maybeNextCard, result)
                 }
                 Computation.ok(maybeNextCard)
             } catch (e: RuntimeException) {
@@ -233,7 +226,12 @@ class SchedulerService {
             }
         }
 
-        fun AnkiMethod<*>.rescheduleRepositionReset(cards: Array<Card>, @UNDO_NAME_ID @StringRes undoNameId: Int, actualActualTask: () -> Unit): Computation<Optional<Card>> {
+        fun AnkiMethod<*>.rescheduleRepositionReset(
+            cards: Array<Card>,
+            @UndoNameId @StringRes
+            undoNameId: Int,
+            actualActualTask: () -> Unit
+        ): Computation<Optional<Card>> {
             val sched = col.sched
             // collect undo information, sensitive to memory pressure, same for all 3 cases
             try {

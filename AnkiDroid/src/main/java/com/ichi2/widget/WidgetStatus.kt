@@ -15,16 +15,14 @@
 package com.ichi2.widget
 
 import android.content.Context
-import android.content.Intent
-import android.util.Pair
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.CollectionHelper
 import com.ichi2.anki.MetaDB
-import com.ichi2.anki.Preferences
-import com.ichi2.anki.services.NotificationService
+import com.ichi2.anki.preferences.Preferences
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.async.BaseAsyncTask
 import com.ichi2.libanki.sched.Counts
+import com.ichi2.utils.KotlinCleanup
 import com.ichi2.widget.AnkiDroidWidgetSmall.UpdateService
 import timber.log.Timber
 
@@ -44,12 +42,14 @@ object WidgetStatus {
      *             https://developer.android.com/guide/topics/appwidgets/#MetaData
      */
     @Suppress("deprecation") // #7108: AsyncTask
-    @JvmStatic
-    fun update(context: Context?) {
-        val preferences = AnkiDroidApp.getSharedPrefs(context)
+    fun update(context: Context) {
+        val preferences = context.sharedPrefs()
         sSmallWidgetEnabled = preferences.getBoolean("widgetSmallEnabled", false)
-        val notificationEnabled = preferences.getString(Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION, "1000001")!!.toInt() < 1000000
-        val canExecuteTask = sUpdateDeckStatusAsyncTask == null || sUpdateDeckStatusAsyncTask!!.status == android.os.AsyncTask.Status.FINISHED
+        val notificationEnabled =
+            preferences.getString(Preferences.MINIMUM_CARDS_DUE_FOR_NOTIFICATION, "1000001")!!
+                .toInt() < 1000000
+        val canExecuteTask =
+            sUpdateDeckStatusAsyncTask == null || sUpdateDeckStatusAsyncTask!!.status == android.os.AsyncTask.Status.FINISHED
         if ((sSmallWidgetEnabled || notificationEnabled) && canExecuteTask) {
             Timber.d("WidgetStatus.update(): updating")
             sUpdateDeckStatusAsyncTask = UpdateDeckStatusAsyncTask()
@@ -60,12 +60,11 @@ object WidgetStatus {
     }
 
     /** Returns the status of each of the decks.  */
-    @JvmStatic
-    fun fetchSmall(context: Context?): IntArray {
+    fun fetchSmall(context: Context): IntArray {
         return MetaDB.getWidgetSmallStatus(context)
     }
 
-    fun fetchDue(context: Context?): Int {
+    fun fetchDue(context: Context): Int {
         return MetaDB.getNotificationStatus(context)
     }
 
@@ -75,7 +74,7 @@ object WidgetStatus {
             super.doInBackground(*arg0)
             Timber.d("WidgetStatus.UpdateDeckStatusAsyncTask.doInBackground()")
             val context = arg0[0]
-            if (!AnkiDroidApp.isSdCardMounted()) {
+            if (!AnkiDroidApp.isSdCardMounted) {
                 return context
             }
             try {
@@ -87,23 +86,20 @@ object WidgetStatus {
         }
 
         @Suppress("deprecation") // #7108: AsyncTask
+        @KotlinCleanup("make result non-null")
         override fun onPostExecute(result: Context?) {
             super.onPostExecute(result)
             Timber.d("WidgetStatus.UpdateDeckStatusAsyncTask.onPostExecute()")
-            MetaDB.storeSmallWidgetStatus(result, sSmallWidgetStatus)
+            MetaDB.storeSmallWidgetStatus(result!!, sSmallWidgetStatus)
             if (sSmallWidgetEnabled) {
-                result?.let { UpdateService().doUpdate(it) }
+                UpdateService().doUpdate(result)
             }
-            val intent = Intent(NotificationService.INTENT_ACTION)
-            val appContext = result!!.applicationContext
-            LocalBroadcastManager.getInstance(appContext).sendBroadcast(intent)
+            (result.applicationContext as? AnkiDroidApp)?.scheduleNotification()
         }
 
         private fun updateCounts(context: Context) {
             val total = Counts()
-            val col = CollectionHelper.getInstance().getCol(context)
-            // Ensure queues are reset if we cross over to the next day.
-            col.sched._checkDay()
+            val col = CollectionHelper.instance.getCol(context)!!
 
             // Only count the top-level decks in the total
             val nodes = col.sched.deckDueTree().map { it.value }

@@ -16,8 +16,6 @@
 
 package com.ichi2.libanki.sched
 
-import com.ichi2.utils.KotlinCleanup
-
 /**
  * Defines a node in a tree with a known, non-null value: [value].
  * [children] contain the children (may be empty, but non-null)
@@ -25,22 +23,27 @@ import com.ichi2.utils.KotlinCleanup
 data class TreeNode<T : Any>(val value: T) {
     fun hasChildren(): Boolean = children.any()
     val children: MutableList<TreeNode<T>> = mutableListOf()
+    override fun toString(): String = "$value, $children"
 
-    /** UNSAFE. Casts the tree to [U] */
-    @KotlinCleanup("should be removable after DeckPicker is converted")
-    @Suppress("UNCHECKED_CAST")
-    fun <U : Any> unsafeCastToType(): TreeNode<U> {
-        return TreeNode(this.value as U).also {
-            it.children.addAll(this.children.map { child -> child.unsafeCastToType() })
+    /**
+     * Flattens the tree to a list and provides a child -> parent association.
+     * @return A sequence of pairs. `first` is a node in the tree. `second` is the node's parent
+     * in the tree, or `null` if the node is a root.
+     */
+    private fun flattenWithParent(parent: T? = null): Sequence<Pair<T, T?>> = sequence {
+        val currentNode = this@TreeNode
+        yield(Pair(currentNode.value, parent))
+        for (child in currentNode.children) {
+            yieldAll(child.flattenWithParent(parent = currentNode.value))
         }
     }
 
-    /** UNSAFE. Casts the tree to [U] */
-    @KotlinCleanup("should be removable after DeckPicker is converted")
-    @Suppress("UNUSED_PARAMETER")
-    fun <U : Any> unsafeCastToType(unused: Class<U>): TreeNode<U> {
-        return unsafeCastToType()
-    }
+    fun associateNodeWithParent(): Map<T, T?> = flattenWithParent().toMap()
+}
 
-    override fun toString(): String = "$value, $children"
+// https://stackoverflow.com/a/6831626
+fun <T : Any> List<TreeNode<T>>.associateNodeWithParent(): Map<T, T?> {
+    return this.map { it.associateNodeWithParent() }
+        .flatMap { map -> map.entries }
+        .associate(Map.Entry<T, T?>::toPair)
 }

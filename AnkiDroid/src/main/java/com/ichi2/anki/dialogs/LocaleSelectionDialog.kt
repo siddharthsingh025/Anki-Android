@@ -30,15 +30,15 @@ import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.afollestad.materialdialogs.DialogAction
 import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.customview.customView
 import com.ichi2.anki.R
 import com.ichi2.anki.analytics.AnalyticsDialogFragment
 import com.ichi2.anki.dialogs.LocaleSelectionDialog.LocaleListAdapter.TextViewHolder
 import com.ichi2.ui.RecyclerSingleTouchAdapter
 import com.ichi2.utils.DisplayUtils.resizeWhenSoftInputShown
 import com.ichi2.utils.TypedFilter
-import java.util.*
+import java.util.Locale
 
 /** Locale selection dialog. Note: this must be dismissed onDestroy if not called from an activity implementing LocaleSelectionDialogHandler  */
 class LocaleSelectionDialog : AnalyticsDialogFragment() {
@@ -69,15 +69,19 @@ class LocaleSelectionDialog : AnalyticsDialogFragment() {
         val activity: Activity = requireActivity()
         val tagsDialogView = LayoutInflater.from(activity)
             .inflate(R.layout.locale_selection_dialog, activity.findViewById(R.id.root_layout), false)
-        val adapter = LocaleListAdapter(Locale.getAvailableLocales())
+        val adapter = LocaleListAdapter(Locale.getAvailableLocales() + IPALanguage)
         setupRecyclerView(activity, tagsDialogView, adapter)
         inflateMenu(tagsDialogView, adapter)
+
         // Only show a negative button, use the RecyclerView for positive actions
-        val builder = MaterialDialog.Builder(activity)
-            .negativeText(getString(R.string.dialog_cancel))
-            .customView(tagsDialogView, false)
-            .onNegative { _: MaterialDialog?, _: DialogAction? -> mDialogHandler!!.onLocaleSelectionCancelled() }
-        val dialog: Dialog = builder.build()
+        // when changing to AlertDialog make sure the keyboard is being shown when clicking search in the dialog toolbar
+        val dialog = MaterialDialog(activity).show {
+            customView(view = tagsDialogView, noVerticalPadding = true)
+            negativeButton(text = getString(R.string.dialog_cancel)) {
+                mDialogHandler!!.onLocaleSelectionCancelled()
+            }
+        }
+
         val window = dialog.window
         if (window != null) {
             resizeWhenSoftInputShown(window)
@@ -171,9 +175,17 @@ class LocaleSelectionDialog : AnalyticsDialogFragment() {
 
     companion object {
         /**
+         * Language identifier for International Phonetic Alphabet. This isn't available from [Locale.getAvailableLocales], but
+         * GBoard seems to understand this as a language code.
+         *
+         * See issue #13883
+         * See https://en.wikipedia.org/wiki/International_Phonetic_Alphabet#IETF_language_tags
+         */
+        private val IPALanguage = Locale.Builder().setLanguageTag("und-fonipa").build()
+
+        /**
          * @param handler Marker interface to enforce the convention the caller implementing LocaleSelectionDialogHandler
          */
-        @JvmStatic
         fun newInstance(handler: LocaleSelectionDialogHandler): LocaleSelectionDialog {
             return LocaleSelectionDialog().apply {
                 mDialogHandler = handler

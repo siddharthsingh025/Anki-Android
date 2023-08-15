@@ -17,31 +17,28 @@ package com.ichi2.anki
 
 import android.content.Intent
 import android.graphics.Color
-import com.ichi2.utils.KotlinCleanup
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.`is`
+import org.hamcrest.Matchers.equalTo
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.ParameterizedRobolectricTestRunner
-import java.util.*
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
-@KotlinCleanup("IDE lint")
-@KotlinCleanup("`is` -> equalTo")
 class WhiteboardDefaultForegroundColorTest : RobolectricTest() {
     @ParameterizedRobolectricTestRunner.Parameter
-    @JvmField
+    @JvmField // required for Parameter
     var mIsInverted = false
 
     @ParameterizedRobolectricTestRunner.Parameter(1)
-    @JvmField
+    @JvmField // required for Parameter
     var mExpectedResult = 0
+
     @Test
     fun testDefaultForegroundColor() {
-        assertThat(foregroundColor, `is`(mExpectedResult))
+        assertThat(foregroundColor, equalTo(mExpectedResult))
     }
 
-    protected val foregroundColor: Int
+    private val foregroundColor: Int
         get() {
             val mock: AbstractFlashcardViewer = super.startActivityNormallyOpenCollectionWithIntent(Reviewer::class.java, Intent())
             return Whiteboard(mock, true, mIsInverted).foregroundColor
@@ -49,9 +46,9 @@ class WhiteboardDefaultForegroundColorTest : RobolectricTest() {
 
     companion object {
         @ParameterizedRobolectricTestRunner.Parameters
-        @JvmStatic
+        @JvmStatic // required for initParameters
         fun initParameters(): Collection<Array<Any>> {
-            return Arrays.asList(*arrayOf(arrayOf(true, Color.WHITE), arrayOf(false, Color.BLACK)))
+            return mutableListOf((arrayOf(true, Color.WHITE)), arrayOf(false, Color.BLACK))
         }
     }
 }

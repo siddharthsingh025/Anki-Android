@@ -17,9 +17,8 @@
 package com.ichi2.anki.reviewer
 
 import android.content.Context
-import android.text.TextUtils
-import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.AnkiFont
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.libanki.Utils
 import com.ichi2.utils.HashUtil.HashMapInit
 
@@ -39,7 +38,7 @@ class ReviewerCustomFonts(context: Context) {
      */
     private fun getDefaultFontStyle(context: Context, customFontsMap: Map<String?, AnkiFont>): String? {
         if (mDefaultFontStyle == null) {
-            val preferences = AnkiDroidApp.getSharedPrefs(context)
+            val preferences = context.sharedPrefs()
             val defaultFont = customFontsMap[preferences.getString("defaultFont", null)]
             mDefaultFontStyle = if (defaultFont != null) {
                 """BODY { ${defaultFont.getCSS(false)} }
@@ -58,7 +57,7 @@ class ReviewerCustomFonts(context: Context) {
      */
     private fun getOverrideFontStyle(context: Context, customFontsMap: Map<String?, AnkiFont>): String? {
         if (mOverrideFontStyle == null) {
-            val preferences = AnkiDroidApp.getSharedPrefs(context)
+            val preferences = context.sharedPrefs()
             val defaultFont = customFontsMap[preferences.getString("defaultFont", null)]
             val overrideFont = "1" == preferences.getString("overrideFontBehavior", "0")
             mOverrideFontStyle = if (defaultFont != null && overrideFont) {
@@ -79,9 +78,9 @@ class ReviewerCustomFonts(context: Context) {
     private fun getDominantFontStyle(context: Context, customFontsMap: Map<String?, AnkiFont>): String? {
         if (mDominantFontStyle == null) {
             mDominantFontStyle = getOverrideFontStyle(context, customFontsMap)
-            if (TextUtils.isEmpty(mDominantFontStyle)) {
+            if (mDominantFontStyle.isNullOrEmpty()) {
                 mDominantFontStyle = getDefaultFontStyle(context, customFontsMap)
-                if (TextUtils.isEmpty(mDominantFontStyle)) {
+                if (mDominantFontStyle.isNullOrEmpty()) {
                     mDominantFontStyle = themeFontStyle
                 }
             }

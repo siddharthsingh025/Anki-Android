@@ -33,17 +33,16 @@ import com.ichi2.anki.servicelayer.SchedulerService.SuspendCard
 import com.ichi2.anki.servicelayer.SchedulerService.SuspendNote
 import com.ichi2.libanki.Card
 import com.ichi2.utils.Computation
-import com.ichi2.utils.KotlinCleanup
+import kotlinx.coroutines.Job
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito
+import org.mockito.kotlin.whenever
 import timber.log.Timber
-import java.lang.Exception
 
-@KotlinCleanup("change `when` to whenever(); remove `protected` modifiers")
 @RunWith(AndroidJUnit4::class)
 class ReviewerKeyboardInputTest : RobolectricTest() {
     @Test
@@ -244,7 +243,7 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
         }
 
         fun displayAnswerForTest() {
-            sDisplayAnswer = true
+            displayAnswer = true
         }
 
         override fun answerFieldIsFocused(): Boolean {
@@ -262,15 +261,15 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
         fun handleUnicodeKeyPress(unicodeChar: Char) {
             val key = mockKeyEvent
             // COULD_BE_BETTER: We do not handle shift
-            Mockito.`when`(key.getUnicodeChar(ArgumentMatchers.anyInt())).thenReturn(unicodeChar.code)
+            whenever(key.getUnicodeChar(ArgumentMatchers.anyInt())).thenReturn(unicodeChar.code)
             try {
-                Mockito.`when`(key.action).thenReturn(ACTION_DOWN)
+                whenever(key.action).thenReturn(ACTION_DOWN)
                 onKeyDown(0, key)
             } catch (e: Exception) {
                 Timber.e(e)
             }
             try {
-                Mockito.`when`(key.action).thenReturn(ACTION_UP)
+                whenever(key.action).thenReturn(ACTION_UP)
                 onKeyUp(0, key)
             } catch (e: Exception) {
                 Timber.e(e)
@@ -282,15 +281,15 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             // but may let something slip through the cracks.
             val e = mockKeyEvent
             // COULD_BE_BETTER: We do not handle shift
-            Mockito.`when`(e.getUnicodeChar(ArgumentMatchers.anyInt())).thenReturn(unicodeChar.code)
-            Mockito.`when`(e.action).thenReturn(ACTION_DOWN)
-            Mockito.`when`(e.keyCode).thenReturn(keycode)
+            whenever(e.getUnicodeChar(ArgumentMatchers.anyInt())).thenReturn(unicodeChar.code)
+            whenever(e.action).thenReturn(ACTION_DOWN)
+            whenever(e.keyCode).thenReturn(keycode)
             try {
                 onKeyDown(keycode, e)
             } catch (ex: Exception) {
                 Timber.e(ex)
             }
-            Mockito.`when`(e.action).thenReturn(ACTION_UP)
+            whenever(e.action).thenReturn(ACTION_UP)
             try {
                 onKeyUp(keycode, e)
             } catch (ex: Exception) {
@@ -298,12 +297,12 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             }
         }
 
-        protected val mockKeyEvent: KeyEvent
+        private val mockKeyEvent: KeyEvent
             get() {
                 val key = Mockito.mock(KeyEvent::class.java)
-                Mockito.`when`(key.isShiftPressed).thenReturn(false)
-                Mockito.`when`(key.isCtrlPressed).thenReturn(false)
-                Mockito.`when`(key.isAltPressed).thenReturn(false)
+                whenever(key.isShiftPressed).thenReturn(false)
+                whenever(key.isCtrlPressed).thenReturn(false)
+                whenever(key.isAltPressed).thenReturn(false)
                 return key
             }
 
@@ -321,20 +320,15 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             }
         }
 
-        protected fun createKeyEvent(action: Int, keycode: Int): KeyEvent {
+        private fun createKeyEvent(action: Int, keycode: Int): KeyEvent {
             val keyEvent = Mockito.mock(KeyEvent::class.java)
-            Mockito.`when`(keyEvent.keyCode).thenReturn(keycode)
-            Mockito.`when`(keyEvent.action).thenReturn(action)
-            Mockito.`when`(keyEvent.isShiftPressed).thenReturn(false)
-            Mockito.`when`(keyEvent.isCtrlPressed).thenReturn(false)
-            Mockito.`when`(keyEvent.isAltPressed).thenReturn(false)
+            whenever(keyEvent.keyCode).thenReturn(keycode)
+            whenever(keyEvent.action).thenReturn(action)
+            whenever(keyEvent.isShiftPressed).thenReturn(false)
+            whenever(keyEvent.isCtrlPressed).thenReturn(false)
+            whenever(keyEvent.isAltPressed).thenReturn(false)
             return keyEvent
         }
-
-        override fun setTitle() {
-            // required for interface. Intentionally left blank
-        }
-
         fun focusTextField(): KeyboardInputTestReviewer {
             mFocusTextField = true
             return this
@@ -368,8 +362,9 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             handleKeyPress(buttonCode, '\u0000')
         }
 
-        override fun undo() {
+        override fun undo(): Job? {
             undoCalled = true
+            return null
         }
 
         val suspendNoteCalled: Boolean
@@ -417,7 +412,7 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             @CheckResult
             fun displayingAnswer(): KeyboardInputTestReviewer {
                 val keyboardInputTestReviewer = KeyboardInputTestReviewer()
-                sDisplayAnswer = true
+                displayAnswer = true
                 keyboardInputTestReviewer.mProcessor.setup()
                 return keyboardInputTestReviewer
             }
@@ -425,7 +420,7 @@ class ReviewerKeyboardInputTest : RobolectricTest() {
             @CheckResult
             fun displayingQuestion(): KeyboardInputTestReviewer {
                 val keyboardInputTestReviewer = KeyboardInputTestReviewer()
-                sDisplayAnswer = false
+                displayAnswer = false
                 keyboardInputTestReviewer.mProcessor.setup()
                 return keyboardInputTestReviewer
             }

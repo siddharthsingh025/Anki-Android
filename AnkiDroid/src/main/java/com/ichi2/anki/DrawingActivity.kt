@@ -23,6 +23,9 @@ import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
+import androidx.core.content.ContextCompat
+import androidx.core.view.MenuItemCompat
+import com.ichi2.libanki.utils.TimeManager
 import timber.log.Timber
 import java.io.FileNotFoundException
 
@@ -42,6 +45,7 @@ class DrawingActivity : AnkiActivity() {
             return
         }
         super.onCreate(savedInstanceState)
+        setTitle(R.string.drawing)
         setContentView(R.layout.activity_drawing)
         enableToolbar()
         mColorPalette = findViewById(R.id.whiteboard_editor)
@@ -51,6 +55,14 @@ class DrawingActivity : AnkiActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.drawing_menu, menu)
+        val whiteboardEditItem = menu.findItem(R.id.action_whiteboard_edit)
+        MenuItemCompat.setIconTintList(
+            whiteboardEditItem,
+            ContextCompat.getColorStateList(
+                this,
+                R.color.white
+            )
+        )
         return super.onCreateOptionsMenu(menu)
     }
 
@@ -74,7 +86,7 @@ class DrawingActivity : AnkiActivity() {
 
     private fun finishWithSuccess() {
         try {
-            val savedWhiteboardFileName = mWhiteboard.saveWhiteboard(col.time)
+            val savedWhiteboardFileName = mWhiteboard.saveWhiteboard(TimeManager.time)
             val resultData = Intent()
             resultData.putExtra(EXTRA_RESULT_WHITEBOARD, savedWhiteboardFileName)
             setResult(RESULT_OK, resultData)

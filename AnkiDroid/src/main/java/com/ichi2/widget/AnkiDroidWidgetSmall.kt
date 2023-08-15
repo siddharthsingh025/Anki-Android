@@ -24,11 +24,13 @@ import android.os.IBinder
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.app.PendingIntentCompat
+import androidx.core.content.edit
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.IntentHandler
 import com.ichi2.anki.R
 import com.ichi2.anki.analytics.UsageAnalytics
-import com.ichi2.compat.CompatHelper
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.utils.KotlinCleanup
 import timber.log.Timber
 import kotlin.math.sqrt
@@ -42,16 +44,16 @@ class AnkiDroidWidgetSmall : AppWidgetProvider() {
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
         Timber.d("SmallWidget: Widget enabled")
-        val preferences = AnkiDroidApp.getSharedPrefs(context)
-        preferences.edit().putBoolean("widgetSmallEnabled", true).commit()
+        val preferences = context.sharedPrefs()
+        preferences.edit(commit = true) { putBoolean("widgetSmallEnabled", true) }
         UsageAnalytics.sendAnalyticsEvent(this.javaClass.simpleName, "enabled")
     }
 
     override fun onDisabled(context: Context) {
         super.onDisabled(context)
         Timber.d("SmallWidget: Widget disabled")
-        val preferences = AnkiDroidApp.getSharedPrefs(context)
-        preferences.edit().putBoolean("widgetSmallEnabled", false).commit()
+        val preferences = context.sharedPrefs()
+        preferences.edit(commit = true) { putBoolean("widgetSmallEnabled", false) }
         UsageAnalytics.sendAnalyticsEvent(this.javaClass.simpleName, "disabled")
     }
 
@@ -83,7 +85,7 @@ class AnkiDroidWidgetSmall : AppWidgetProvider() {
         private fun buildUpdate(context: Context, updateDueDecksNow: Boolean): RemoteViews {
             Timber.d("buildUpdate")
             val updateViews = RemoteViews(context.packageName, R.layout.widget_small)
-            val mounted = AnkiDroidApp.isSdCardMounted()
+            val mounted = AnkiDroidApp.isSdCardMounted
             if (!mounted) {
                 updateViews.setViewVisibility(R.id.widget_due, View.INVISIBLE)
                 updateViews.setViewVisibility(R.id.widget_eta, View.INVISIBLE)
@@ -98,10 +100,10 @@ class AnkiDroidWidgetSmall : AppWidgetProvider() {
                             if (action != null && action == Intent.ACTION_MEDIA_MOUNTED) {
                                 Timber.d("mMountReceiver - Action = Media Mounted")
                                 if (remounted) {
-                                    WidgetStatus.update(AnkiDroidApp.getInstance())
+                                    WidgetStatus.update(AnkiDroidApp.instance)
                                     remounted = false
                                     if (mMountReceiver != null) {
-                                        AnkiDroidApp.getInstance().unregisterReceiver(mMountReceiver)
+                                        AnkiDroidApp.instance.unregisterReceiver(mMountReceiver)
                                     }
                                 } else {
                                     remounted = true
@@ -112,7 +114,7 @@ class AnkiDroidWidgetSmall : AppWidgetProvider() {
                     val iFilter = IntentFilter()
                     iFilter.addAction(Intent.ACTION_MEDIA_MOUNTED)
                     iFilter.addDataScheme("file")
-                    AnkiDroidApp.getInstance().registerReceiver(mMountReceiver, iFilter)
+                    AnkiDroidApp.instance.registerReceiver(mMountReceiver, iFilter)
                 }
             } else {
                 // If we do not have a cached version, always update.
@@ -150,9 +152,12 @@ class AnkiDroidWidgetSmall : AppWidgetProvider() {
             val ankiDroidIntent = Intent(context, IntentHandler::class.java)
             ankiDroidIntent.action = Intent.ACTION_MAIN
             ankiDroidIntent.addCategory(Intent.CATEGORY_LAUNCHER)
-            val pendingAnkiDroidIntent = CompatHelper.compat.getImmutableActivityIntent(
-                context, 0, ankiDroidIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT
+            val pendingAnkiDroidIntent = PendingIntentCompat.getActivity(
+                context,
+                0,
+                ankiDroidIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT,
+                false
             )
             updateViews.setOnClickPendingIntent(R.id.ankidroid_widget_small_button, pendingAnkiDroidIntent)
             updateWidgetDimensions(context, updateViews, AnkiDroidWidgetSmall::class.java)

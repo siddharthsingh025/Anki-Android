@@ -60,13 +60,6 @@
     <string name="initializing_tts">Inicializando TTS&#8230;</string>
     <string name="tts_no_tts">Não fale</string>
     <string name="unused_strings">\n\nArquivos não utilizados:\n</string>
-    <string-array name="about_content">
-        <item><![CDATA[<h2>%1$s:<br/>Flashcards para Android</h2>AnkiDroid é uma app de cards de estudo totalmente compatível com o software de PC <a href=\"%2$s\">Anki</a>. Você pode criar, baixar e aprender conteúdos em ambos (AnkiDroid ou Anki Desktop) e sincronizá-los facilmente com AnkiWeb.]]></item>
-        <item><![CDATA[Para nos ajudar a melhorar o AnkiDroid, favor reporte bugs para <a href=\"%1$s\">o rastreador de problemas</a>; novas ideias de recurso também são muito bem-vindas. Encontre respostas na <a href=\"%2$s\">wiki</a> ou inicie uma discussão no <a href=\"%3$s\">fórum</a>.]]></item>
-        <item><![CDATA[AnkiDroid é <a href=\"%1$s\"> um software de código aberto<a/>, então todo mundo é incentivado a <a href=\"%2$s\"> tornar-se um colaborador</a> :-)]]></item>
-        <item><![CDATA[Não-desenvolvedores também podem ajudar. Por exemplo, você pode <a href=\"%1$s\"> ajudar a traduzir</a> AnkiDroid, atualizar o wiki, fornecer screenshots, ou blogar sobre AnkiDroid.]]></item>
-        <item><![CDATA[O AnkiDroid é publicado sob a <a href=\"%1$s\">licença GNU-GPL v3</a> e o código-fonte está disponível <a href=\"%2$s\">no GitHub</a>.]]></item>
-    </string-array>
     <string name="preview_title" comment="Title of the window allowing to preview card(s)">Pré-visualizar</string>
     <string name="reposition_card_dialog_title">Reposicionar novo card</string>
     <string name="reposition_card_dialog_message">Posição inicial:</string>
@@ -101,6 +94,7 @@
     <string name="answering_error_title">Erro de banco de dados</string>
     <string name="answering_error_message">Ocorreu um erro ao gravar na coleção. Isso pode estar relacionado a um banco de dados corrompido ou espaço insuficiente no disco.\n\nSe isso ocorrer frequentemente, tente verificar o banco de dados, reparar a coleção ou restaurá-la de um backup. Clique em \'Opções\' para isso.\n\nEm todo caso, isso pode ser um bug do AnkiDroid; relate o erro para que possamos verificar o problema.</string>
     <string name="answering_error_report">Reportar erro</string>
+    <string name="storage_full_message">Não há espaço suficiente livre para abrir o AnkiDroid. Libere espaço para continuar.</string>
     <string name="repair_deck_dialog">Você realmente deseja tentar reparar o banco de dados?\n\nAntes de iniciar a tentativa, uma cópia será criada na subpasta \"%s\".</string>
     <string name="intent_aedict_empty">Categoria \'padrão\' está vazia</string>
     <string name="intent_aedict_category">Para adicionar cards ao AnkiDroid remova todas as categorias das notas ou adicione uma com o nome \'default\'</string>
@@ -118,18 +112,24 @@
     <string name="import_progress">• Importando notas: %1$d%%\n• Importando cards: %2$d%%\n• Processando: %3$d%%</string>
     <string name="import_update_details">Atualizando %1$d de %2$d notas existentes.</string>
     <string name="import_update_ignored">Algumas atualizações foram ignoradas porque o tipo de nota mudou</string>
-    <string name="import_complete_count">Cards importados: %d</string>
-    <string name="sd_card_full_title">Cartão SD cheio</string>
-    <string name="sd_card_almost_full_title">Cartão SD quase cheio</string>
-    <string name="no_space_to_downgrade_title">Sem espaço</string>
-    <string name="no_space_to_downgrade_content">AnkiDroid precisa de %s de espaço de armazenamento livre para continuar. Por favor, limpe algum espaço</string>
+    <plurals name="import_complete_message">
+        <item quantity="one">Cards importados: %2$d</item>
+        <item quantity="other">Arquivos importados: %1$d\nTotal de cards importados: %2$d</item>
+    </plurals>
+    <string name="storage_full_title">Armazenamento cheio</string>
+    <string name="storage_almost_full_title">Armazenamento quase cheio</string>
+    <string name="no_space_to_downgrade_title" tools:ignore="UnusedResources">Sem espaço</string>
+    <string name="no_space_to_downgrade_content" tools:ignore="UnusedResources">AnkiDroid precisa de %s de espaço de armazenamento livre para continuar. Por favor, limpe algum espaço</string>
     <string name="restore_backup_title">Restaurar backup?</string>
     <string name="restore_backup">A sua coleção será substituída por uma cópia mais antiga. Qualquer progresso não salvo será perdido.</string>
     <string name="restore_backup_choose_another">Procurar</string>
     <string name="dialog_cancel">Cancelar</string>
     <string name="dialog_ok">OK</string>
+    <string name="dialog_confirm" tools:ignore="UnusedResources">Confirmar</string>
     <string name="dialog_no">Não</string>
+    <string name="dialog_yes">Sim</string>
     <string name="dialog_continue">Continuar</string>
+    <string name="dialog_processing">Processando...</string>
     <string name="dialog_positive_create" comment="Create a new collection, probably erasing the previous one, may be necessary in case of error.">Criar</string>
     <string name="dialog_positive_delete">Excluir</string>
     <!-- Currently unsued, should be useful in the future -->
@@ -165,8 +165,6 @@
     <string name="tags_dialog_option_due_cards" comment="Name of cards that are already been reviewed in the past, and that should be reviewed again">Pendentes</string>
     <!-- Empty cards -->
     <string name="emtpy_cards_finding">Buscando cards vazios&#8230;</string>
-    <string name="confirm_cancel">Você quer cancelar?</string>
-    <string name="empty_cards_none">Sem cards vazios</string>
     <string name="empty_cards_count">Cards a deletar: %d</string>
     <string name="empty_cards_deleted">Cards deletados: %d</string>
     <!-- Multimedia - Edit Field Activity -->
@@ -175,9 +173,6 @@
     <string name="multimedia_editor_failed">Falha ao abrir o Editor de Multimídia</string>
     <!-- Multimedia - Audio View -->
     <string name="multimedia_editor_audio_permission_denied">Permissão de gravação de áudio negada</string>
-    <!-- Initial collection load -->
-    <string name="collection_load_welcome_request_permissions_title">Bem-vindo ao AnkiDroid!</string>
-    <string name="collection_load_welcome_request_permissions_details">AnkiDroid requer acesso ao armazenamento. Usamos exclusivamente para armazenar a sua coleção, mídia de cards e backups. Nosso código é open-source, escrito por voluntários e confiável por milhões.\n\nSe você tiver alguma dúvida, por favor, acesse nosso manual no app ou visite nossos fóruns de suporte.\n\nObrigado por experimentar o AnkiDroid!\n— Equipe de Desenvolvimento AnkiDroid</string>
     <string name="mutimedia_editor_assertion_failed">Ocorreu um erro desconhecido ao exibir o Editor Avançado</string>
     <!-- Database Integrity Check -->
     <string name="integrity_check_startup_title">AnkiDroid Atualizado</string>
@@ -185,7 +180,10 @@
     <string name="integrity_check_continue_anyway">Continuar assim mesmo</string>
     <string name="integrity_check_insufficient_space">Verificar a Base de Dados usa uma grande quantidade de armazenamento temporário.\n\nÉ altamente recomendável que você tenha pelo menos %s espaço livre no seu dispositivo antes de continuar.</string>
     <string name="integrity_check_insufficient_space_extra_content">\n\nVocê tem atualmente %s livre.</string>
-    <string name="integrity_check_fixed_no_home_deck">%d cards sem baralhos corretos foram recuperados. Por favor, consulte o manual para obter mais informações.</string>
+    <plurals name="integrity_check_fixed_no_home_deck_new">
+        <item quantity="one">%d card with incorrect home deck was recovered. Please see the manual for more information.</item>
+        <item quantity="other">%d cards with incorrect home decks were recovered. Please see the manual for more information.</item>
+    </plurals>
     <string name="video_creation_error">Não foi possível reproduzir o vídeo</string>
     <!-- Card Browser -->
     <string name="card_browser_deck_change_error">Não foi possível mudar o baralho</string>
@@ -233,6 +231,7 @@
     <string name="help_item_support_develop_ankidroid">Desenvolvedor</string>
     <string name="help_item_support_rate_ankidroid">Avaliar</string>
     <string name="help_item_support_other_ankidroid">Outros</string>
+    <string name="multimedia_editor_trans_translate">Traduzir</string>
     <string name="help_title_community">Comunidade</string>
     <string name="help_item_anki_forums">Fóruns Anki</string>
     <string name="help_item_discord">Discord</string>
@@ -249,6 +248,7 @@
         <item quantity="one">Uma sincronização automática pode ser executada em %d segundos.</item>
         <item quantity="other">Uma sincronização automática pode ser executada em %d segundos.</item>
     </plurals>
+    <string name="metered_sync_warning">Sua conexão foi restringida. A transferência de dados pode custar dinheiro</string>
     <string name="deck_picker_new">Número de novos cards para ver hoje neste baralho.</string>
     <string name="deck_picker_rev">Número de cartões que vencem hoje neste baralho.</string>
     <string name="deck_picker_lrn">Número de cards em para aprender neste baralho.</string>
@@ -258,4 +258,19 @@
     <string name="deck_picker_counts">Abra a página de visão geral do deck contendo o número de cartas a serem vistas hoje.</string>
     <string name="import_deck_package">Baralho (.apkg)</string>
     <string name="import_collection_package">Coleção (.colpkg)</string>
+    <string name="import_csv">Arquivo de texto (.txt, .csv)</string>
+    <!-- Deck selection dialog -->
+    <string name="cannot_create_subdeck_for_all_decks">Você não pode criar um sub-baralho para todos os baralhos</string>
+    <!-- scoped storage -->
+    <string name="backup_your_collection">Cópia da sua coleção</string>
+    <string name="backup_collection_message">Você não fez cópia da sua coleção há um tempo. Deveria fazê-lo agora para evitar perda de dados.</string>
+    <string name="button_backup">Criar cópia</string>
+    <string name="button_disable_reminder">Desabilitar lembrete</string>
+    <string name="button_backup_later" comment="dismiss the \'Backup\' dialog for around 2 weeks">Mais tarde</string>
+    <string name="button_do_not_show_again" comment="permanently dismisses a dialog">Não mostrar novamente</string>
+    <string name="dismiss_backup_warning_title">Aviso de perda de dados</string>
+    <string name="dismiss_backup_warning_new_user">        Devido às alterações de privacidade do Android, seus dados e cópias automáticas serão excluídos do seu telefone se o aplicativo for desinstalado.
+    </string>
+    <string name="dismiss_backup_warning_upgrade">        Devido às alterações de privacidade do Android, seus dados e cópias automáticas serão inacessíveis se o aplicativo for desinstalado.
+    </string>
 </resources>

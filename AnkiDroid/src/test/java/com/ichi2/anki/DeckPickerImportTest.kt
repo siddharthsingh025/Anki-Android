@@ -19,7 +19,6 @@ import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.anki.dialogs.AsyncDialogFragment
 import com.ichi2.anki.dialogs.ImportDialog
-import com.ichi2.utils.KotlinCleanup
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers
 import org.junit.Assert.fail
@@ -32,7 +31,7 @@ class DeckPickerImportTest : RobolectricTest() {
     fun importAddShowsImportDialog() {
         val deckPicker = super.startActivityNormallyOpenCollectionWithIntent(DeckPickerImport::class.java, Intent())
 
-        deckPicker.showImportDialog(ImportDialog.DIALOG_IMPORT_ADD_CONFIRM, "")
+        deckPicker.showImportDialog(ImportDialog.DIALOG_IMPORT_ADD_CONFIRM, arrayListOf(""))
 
         assertThat(deckPicker.getAsyncDialogFragmentClass(), Matchers.typeCompatibleWith(ImportDialog::class.java))
     }
@@ -41,14 +40,13 @@ class DeckPickerImportTest : RobolectricTest() {
     fun replaceShowsImportDialog() {
         val deckPicker = super.startActivityNormallyOpenCollectionWithIntent(DeckPickerImport::class.java, Intent())
 
-        deckPicker.showImportDialog(ImportDialog.DIALOG_IMPORT_REPLACE_CONFIRM, "")
+        deckPicker.showImportDialog(ImportDialog.DIALOG_IMPORT_REPLACE_CONFIRM, arrayListOf(""))
 
         assertThat(deckPicker.getAsyncDialogFragmentClass(), Matchers.typeCompatibleWith(ImportDialog::class.java))
     }
 
     private class DeckPickerImport : DeckPicker() {
         private var mDialogFragment: AsyncDialogFragment? = null
-        @KotlinCleanup("invert if and return early")
         fun getAsyncDialogFragmentClass(): Class<*> {
             if (mDialogFragment == null) {
                 fail("No async fragment shown")

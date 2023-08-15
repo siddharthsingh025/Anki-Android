@@ -29,6 +29,7 @@ import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.CrashReportService
 import com.ichi2.anki.R
 import com.ichi2.anki.UIUtils.showThemedToast
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.compat.CompatHelper
 import com.ichi2.ui.FixedTextView
 import com.ichi2.utils.ExceptionUtil.executeSafe
@@ -79,7 +80,8 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
     }
 
     private fun openChooserPrompt(initialMimeType: String, extraMimeTypes: Array<String>, @StringRes prompt: Int, resultCode: Int) {
-        val allowAllFiles = AnkiDroidApp.getSharedPrefs(this.mActivity).getBoolean("mediaImportAllowAllFiles", false)
+        val allowAllFiles =
+            this.mActivity.sharedPrefs().getBoolean("mediaImportAllowAllFiles", false)
         val i = Intent()
         i.type = if (allowAllFiles) "*/*" else initialMimeType
         if (!allowAllFiles && extraMimeTypes.any()) {
@@ -91,7 +93,10 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
         // Only get openable files, to avoid virtual files issues with Android 7+
         i.addCategory(Intent.CATEGORY_OPENABLE)
         val chooserPrompt = mActivity.resources.getString(prompt)
-        mActivity.startActivityForResultWithoutAnimation(Intent.createChooser(i, chooserPrompt), resultCode)
+        mActivity.startActivityForResultWithoutAnimation(
+            Intent.createChooser(i, chooserPrompt),
+            resultCode
+        )
     }
 
     @KotlinCleanup("make data non-null")
@@ -117,8 +122,9 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
         mActivity.contentResolver.query(selectedClip!!, queryColumns, null, null, null).use { cursor ->
             if (cursor == null) {
                 showThemedToast(
-                    AnkiDroidApp.getInstance().applicationContext,
-                    AnkiDroidApp.getInstance().getString(R.string.multimedia_editor_something_wrong), true
+                    AnkiDroidApp.instance.applicationContext,
+                    AnkiDroidApp.instance.getString(R.string.multimedia_editor_something_wrong),
+                    true
                 )
                 return
             }
@@ -136,8 +142,9 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
                     // about what people are experiencing in the real world and decide later, but without crashing at least
                     CrashReportService.sendExceptionReport(e, "Media Clip addition failed. Name " + mediaClipFullName + " / cursor mime type column type " + cursor.getType(2))
                     showThemedToast(
-                        AnkiDroidApp.getInstance().applicationContext,
-                        AnkiDroidApp.getInstance().getString(R.string.multimedia_editor_something_wrong), true
+                        AnkiDroidApp.instance.applicationContext,
+                        AnkiDroidApp.instance.getString(R.string.multimedia_editor_something_wrong),
+                        true
                     )
                     return
                 }
@@ -153,8 +160,9 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
             Timber.e(e, "Could not create temporary media file. ")
             CrashReportService.sendExceptionReport(e, "handleMediaSelection:tempFile")
             showThemedToast(
-                AnkiDroidApp.getInstance().applicationContext,
-                AnkiDroidApp.getInstance().getString(R.string.multimedia_editor_something_wrong), true
+                AnkiDroidApp.instance.applicationContext,
+                AnkiDroidApp.instance.getString(R.string.multimedia_editor_something_wrong),
+                true
             )
             return
         }
@@ -165,7 +173,7 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
                 CompatHelper.compat.copyFile(inputStream!!, clipCopy.absolutePath)
 
                 // If everything worked, hand off the information
-                mField.setHasTemporaryMedia(true)
+                mField.hasTemporaryMedia = true
                 mField.audioPath = clipCopy.absolutePath
                 tvAudioClip.text = clipCopy.name
                 tvAudioClip.visibility = View.VISIBLE
@@ -174,8 +182,9 @@ class BasicMediaClipFieldController : FieldControllerBase(), IFieldController {
             Timber.e(e, "Unable to copy media file from ContentProvider")
             CrashReportService.sendExceptionReport(e, "handleMediaSelection:copyFromProvider")
             showThemedToast(
-                AnkiDroidApp.getInstance().applicationContext,
-                AnkiDroidApp.getInstance().getString(R.string.multimedia_editor_something_wrong), true
+                AnkiDroidApp.instance.applicationContext,
+                AnkiDroidApp.instance.getString(R.string.multimedia_editor_something_wrong),
+                true
             )
         }
     }

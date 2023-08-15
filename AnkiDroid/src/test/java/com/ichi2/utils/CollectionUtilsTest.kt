@@ -15,7 +15,7 @@
  */
 package com.ichi2.utils
 
-import com.ichi2.testutils.AnkiAssert.assertEqualsArrayList
+import com.ichi2.utils.CollectionUtils.combinations
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
 import org.junit.Test
@@ -24,20 +24,16 @@ class CollectionUtilsTest {
     var testList = arrayListOf(1, 2, 3)
 
     @Test
-    fun testGetLastListElement() {
-        assertThat(CollectionUtils.getLastListElement(testList), equalTo(3))
-    }
+    fun testCombinations() {
+        val seq = testList.combinations().toList()
+        assertThat(seq[0], equalTo(Pair(1, 2)))
+        assertThat(seq[1], equalTo(Pair(1, 3)))
+        assertThat(seq[2], equalTo(Pair(2, 3)))
 
-    @Test(expected = IndexOutOfBoundsException::class)
-    fun testGetLastOnEmptyList() {
-        val emptyList: List<Int> = ArrayList()
-        CollectionUtils.getLastListElement(emptyList)
-    }
+        val seq2 = listOf<Int>().combinations().toList()
+        assertThat("empty list returns nothing", seq2.size, equalTo(0))
 
-    @Test
-    fun testAddAll() {
-        val toTest = arrayListOf<Int>()
-        CollectionUtils.addAll(toTest, testList)
-        assertEqualsArrayList(arrayOf(1, 2, 3), toTest)
+        val seq3 = listOf(1).combinations().toList()
+        assertThat("singleton list returns nothing", seq3.size, equalTo(0))
     }
 }

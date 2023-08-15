@@ -20,7 +20,9 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.net.Uri
-import android.os.*
+import android.os.Build
+import android.os.LocaleList
+import android.os.Parcelable
 import android.text.InputType
 import android.util.AttributeSet
 import android.view.View
@@ -28,32 +30,39 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.EditText
 import androidx.annotation.RequiresApi
+import androidx.annotation.VisibleForTesting
 import androidx.core.view.ContentInfoCompat
 import androidx.core.view.OnReceiveContentListener
 import androidx.core.view.ViewCompat
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.anki.servicelayer.NoteService
 import com.ichi2.themes.Themes.getColorFromAttr
 import com.ichi2.ui.FixedEditText
 import com.ichi2.utils.ClipboardUtil.IMAGE_MIME_TYPES
 import com.ichi2.utils.ClipboardUtil.getImageUri
+import com.ichi2.utils.ClipboardUtil.getPlainText
 import com.ichi2.utils.ClipboardUtil.hasImage
 import com.ichi2.utils.KotlinCleanup
+import kotlinx.parcelize.Parcelize
 import timber.log.Timber
-import java.lang.Exception
 import java.util.*
+import kotlin.math.max
+import kotlin.math.min
 
 class FieldEditText : FixedEditText, NoteService.NoteField {
     override var ord = 0
     private var mOrigBackground: Drawable? = null
     private var mSelectionChangeListener: TextSelectionListener? = null
     private var mImageListener: ImagePasteListener? = null
-    private var mClipboard: ClipboardManager? = null
 
-    constructor(context: Context?) : super(context!!) {}
-    constructor(context: Context?, attr: AttributeSet?) : super(context!!, attr) {}
-    constructor(context: Context?, attrs: AttributeSet?, defStyle: Int) : super(context!!, attrs, defStyle) {}
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    var clipboard: ClipboardManager? = null
+
+    constructor(context: Context?) : super(context!!)
+    constructor(context: Context?, attr: AttributeSet?) : super(context!!, attr)
+    constructor(context: Context?, attrs: AttributeSet?, defStyle: Int) : super(context!!, attrs, defStyle)
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -63,15 +72,8 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
         }
     }
 
-    @KotlinCleanup("Remove try-catch")
     private fun shouldDisableExtendedTextUi(): Boolean {
-        return try {
-            val sp = AnkiDroidApp.getSharedPrefs(this.context)
-            sp.getBoolean("disableExtendedTextUi", false)
-        } catch (e: Exception) {
-            Timber.e(e, "Failed to get extended UI preference")
-            false
-        }
+        return this.context.sharedPrefs().getBoolean("disableExtendedTextUi", false)
     }
 
     @KotlinCleanup("Simplify")
@@ -83,7 +85,7 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
 
     fun init() {
         try {
-            mClipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         } catch (e: Exception) {
             Timber.w(e)
         }
@@ -103,7 +105,8 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
         val inputConnection = super.onCreateInputConnection(editorInfo) ?: return null
         EditorInfoCompat.setContentMimeTypes(editorInfo, IMAGE_MIME_TYPES)
         ViewCompat.setOnReceiveContentListener(
-            this, IMAGE_MIME_TYPES,
+            this,
+            IMAGE_MIME_TYPES,
             object : OnReceiveContentListener {
                 override fun onReceiveContent(view: View, payload: ContentInfoCompat): ContentInfoCompat? {
                     val pair = payload.partition { item -> item.uri != null }
@@ -167,9 +170,8 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
     /**
      * Restore the default style of this view.
      */
-    @Suppress("deprecation")
     fun setDefaultStyle() {
-        setBackgroundDrawable(mOrigBackground)
+        background = mOrigBackground
     }
 
     fun setSelectionChangeListener(listener: TextSelectionListener?) {
@@ -177,58 +179,52 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
     }
 
     fun setContent(content: String?, replaceNewLine: Boolean) {
-        var _content = content
-        if (content == null) {
-            _content = ""
+        val text = if (content == null) {
+            ""
         } else if (replaceNewLine) {
-            _content = content.replace("<br(\\s*/*)>".toRegex(), NEW_LINE)
+            content.replace("<br(\\s*/*)>".toRegex(), NEW_LINE)
+        } else {
+            content
         }
-        setText(_content)
+        setText(text)
     }
 
-    override fun onSaveInstanceState(): Parcelable? {
+    override fun onSaveInstanceState(): Parcelable {
         val state = super.onSaveInstanceState()
-        val savedState = SavedState(state)
-        savedState.ord = ord
-        return savedState
+        return SavedState(state, ord)
     }
 
-    @KotlinCleanup("Return instead of using _id")
     override fun onTextContextMenuItem(id: Int): Boolean {
         // This handles both CTRL+V and "Paste"
-        var _id = id
-        if (id == android.R.id.paste && hasImage(mClipboard)) {
-            return onImagePaste(getImageUri(mClipboard))
-        }
-
-        /*
-        * The following code replaces the instruction "paste with formatting" with "paste as plan text"
-        * Since AnkiDroid does not know how to use formatted text and strips the formatting when saving the note,
-        * it ensures that the user sees the exact plain text which is actually being saved, not the formatted text.
-        */
-
-        // https://stackoverflow.com/a/45319485
         if (id == android.R.id.paste) {
-            /**
-             * Modified StackOverflow answer:
-             * Pasting as plain text for VERSION_CODES < M required modifying
-             * the user's clipboard, and hence has not been used.
-             *
-             * During testing, older devices pasted text as plain text by default,
-             * so there was no need for a TO-DO
-             */
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                _id = android.R.id.pasteAsPlainText
+            if (hasImage(clipboard)) {
+                return onImagePaste(getImageUri(clipboard))
             }
+            return pastePlainText()
         }
-        return super.onTextContextMenuItem(_id)
+        return super.onTextContextMenuItem(id)
     }
 
-    @KotlinCleanup("Make param non-null")
-    protected fun onImagePaste(imageUri: Uri?): Boolean {
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun pastePlainText(): Boolean {
+        getPlainText(clipboard, context)?.let { pasted ->
+            val start = min(selectionStart, selectionEnd)
+            val end = max(selectionStart, selectionEnd)
+            setText(
+                text!!.substring(0, start) + pasted + text!!.substring(end)
+            )
+            setSelection(start + pasted.length)
+            return true
+        }
+        return false
+    }
+
+    private fun onImagePaste(imageUri: Uri?): Boolean {
         return if (imageUri == null) {
             false
-        } else mImageListener!!.onImagePaste(this, imageUri)
+        } else {
+            mImageListener!!.onImagePaste(this, imageUri)
+        }
     }
 
     override fun onRestoreInstanceState(state: Parcelable) {
@@ -236,9 +232,8 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
             super.onRestoreInstanceState(state)
             return
         }
-        val ss = state
-        super.onRestoreInstanceState(ss.superState)
-        ord = ss.ord
+        super.onRestoreInstanceState(state.superState)
+        ord = state.ord
     }
 
     fun setCapitalize(value: Boolean) {
@@ -253,44 +248,18 @@ class FieldEditText : FixedEditText, NoteService.NoteField {
     val isCapitalized: Boolean
         get() = this.inputType and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES == InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
 
-    @KotlinCleanup("Use @Parcelize")
-    internal class SavedState : BaseSavedState {
-        var ord = 0
-
-        constructor(superState: Parcelable?) : super(superState) {}
-
-        override fun writeToParcel(out: Parcel, flags: Int) {
-            super.writeToParcel(out, flags)
-            out.writeInt(ord)
-        }
-
-        private constructor(`in`: Parcel) : super(`in`) {
-            ord = `in`.readInt()
-        }
-
-        companion object {
-            val CREATOR: Parcelable.Creator<SavedState> = object : Parcelable.Creator<SavedState> {
-                override fun createFromParcel(source: Parcel): SavedState {
-                    return SavedState(source)
-                }
-
-                override fun newArray(size: Int): Array<SavedState?> {
-                    return arrayOfNulls(size)
-                }
-            }
-        }
-    }
+    @Parcelize
+    internal class SavedState(val state: Parcelable?, val ord: Int) : BaseSavedState(state)
 
     interface TextSelectionListener {
         fun onSelectionChanged(selStart: Int, selEnd: Int)
     }
 
-    interface ImagePasteListener {
-        fun onImagePaste(editText: EditText?, uri: Uri?): Boolean
+    fun interface ImagePasteListener {
+        fun onImagePaste(editText: EditText, uri: Uri?): Boolean
     }
 
     companion object {
-        @JvmField
-        val NEW_LINE: String = Objects.requireNonNull(System.getProperty("line.separator"))
+        val NEW_LINE: String = System.getProperty("line.separator")!!
     }
 }

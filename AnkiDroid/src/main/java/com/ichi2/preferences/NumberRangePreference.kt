@@ -19,7 +19,6 @@ import android.content.Context
 import android.text.InputFilter
 import android.text.InputFilter.LengthFilter
 import android.text.InputType
-import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
 import com.ichi2.anki.AnkiDroidApp
@@ -48,8 +47,8 @@ open class NumberRangePreference : android.preference.EditTextPreference, AutoFo
         updateSettings()
     }
 
-    override fun onBindView(view: View?) {
-        super.onBindView(view)
+    override fun onBindDialogView(view: View?) {
+        super.onBindDialogView(view)
         autoFocusAndMoveCursorToEnd(editText)
     }
 
@@ -82,7 +81,7 @@ open class NumberRangePreference : android.preference.EditTextPreference, AutoFo
      * @return The input value within acceptable range.
      */
     private fun getValidatedRangeFromString(input: String): Int {
-        return if (TextUtils.isEmpty(input)) {
+        return if (input.isEmpty()) {
             mMin
         } else {
             try {
@@ -158,6 +157,7 @@ open class NumberRangePreference : android.preference.EditTextPreference, AutoFo
          * @return the persisted value.
          */
         get() = getPersistedInt(mMin)
+
         /**
          * Set this preference's value. The value is validated and persisted as an Integer.
          *

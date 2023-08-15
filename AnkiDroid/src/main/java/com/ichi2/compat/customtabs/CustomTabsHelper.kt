@@ -18,26 +18,24 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.text.TextUtils
 import androidx.browser.customtabs.CustomTabsService
-import com.ichi2.utils.KotlinCleanup
+import com.ichi2.compat.CompatHelper.Companion.queryIntentActivitiesCompat
+import com.ichi2.compat.CompatHelper.Companion.resolveActivityCompat
+import com.ichi2.compat.CompatHelper.Companion.resolveServiceCompat
+import com.ichi2.compat.ResolveInfoFlagsCompat
 import timber.log.Timber
 
 /**
  * Helper class for Custom Tabs.
  */
-@KotlinCleanup("fix IDE lint issues")
 object CustomTabsHelper {
-    private const val TAG = "CustomTabsHelper"
-    const val STABLE_PACKAGE = "com.android.chrome"
-    const val BETA_PACKAGE = "com.chrome.beta"
-    const val DEV_PACKAGE = "com.chrome.dev"
-    const val LOCAL_PACKAGE = "com.google.android.apps.chrome"
+    private const val STABLE_PACKAGE = "com.android.chrome"
+    private const val BETA_PACKAGE = "com.chrome.beta"
+    private const val DEV_PACKAGE = "com.chrome.dev"
+    private const val LOCAL_PACKAGE = "com.google.android.apps.chrome"
     private const val EXTRA_CUSTOM_TABS_KEEP_ALIVE = "android.support.customtabs.extra.KEEP_ALIVE"
     private var sPackageNameToUse: String? = null
 
-    @JvmStatic
-    @KotlinCleanup("the !! could be removed and the warning suppressed as it will return a non null value")
     fun addKeepAliveExtra(context: Context, intent: Intent) {
         val keepAliveIntent = Intent().setClassName(
             context.packageName,
@@ -56,27 +54,25 @@ object CustomTabsHelper {
      * @param context [Context] to use for accessing [PackageManager].
      * @return The package name recommended to use for connecting to custom tabs related components.
      */
-    @JvmStatic
-    @KotlinCleanup("AFTER fixing @KotlinCleanup for CustomTabActivityHelper see if context can be non null")
-    fun getPackageNameToUse(context: Context?): String? {
+    fun getPackageNameToUse(context: Context): String? {
         if (sPackageNameToUse != null) return sPackageNameToUse
-        val pm = context!!.packageManager
+        val pm = context.packageManager
         // Get default VIEW intent handler.
         val activityIntent = Intent(Intent.ACTION_VIEW, Uri.parse("http://www.example.com"))
-        val defaultViewHandlerInfo = pm.resolveActivity(activityIntent, 0)
+        val defaultViewHandlerInfo = pm.resolveActivityCompat(activityIntent, ResolveInfoFlagsCompat.EMPTY)
         var defaultViewHandlerPackageName: String? = null
         if (defaultViewHandlerInfo != null) {
             defaultViewHandlerPackageName = defaultViewHandlerInfo.activityInfo.packageName
         }
 
         // Get all apps that can handle VIEW intents.
-        val resolvedActivityList = pm.queryIntentActivities(activityIntent, 0)
+        val resolvedActivityList = pm.queryIntentActivitiesCompat(activityIntent, ResolveInfoFlagsCompat.EMPTY)
         val packagesSupportingCustomTabs: MutableList<String?> = ArrayList(resolvedActivityList.size)
         for (info in resolvedActivityList) {
             val serviceIntent = Intent()
             serviceIntent.action = CustomTabsService.ACTION_CUSTOM_TABS_CONNECTION
             serviceIntent.setPackage(info.activityInfo.packageName)
-            if (pm.resolveService(serviceIntent, 0) != null) {
+            if (pm.resolveServiceCompat(serviceIntent, ResolveInfoFlagsCompat.EMPTY) != null) {
                 packagesSupportingCustomTabs.add(info.activityInfo.packageName)
             }
         }
@@ -87,7 +83,7 @@ object CustomTabsHelper {
             sPackageNameToUse = null
         } else if (packagesSupportingCustomTabs.size == 1) {
             sPackageNameToUse = packagesSupportingCustomTabs[0]
-        } else if (!TextUtils.isEmpty(defaultViewHandlerPackageName) &&
+        } else if (!defaultViewHandlerPackageName.isNullOrEmpty() &&
             !hasSpecializedHandlerIntents(context, activityIntent) &&
             packagesSupportingCustomTabs.contains(defaultViewHandlerPackageName)
         ) {
@@ -112,9 +108,9 @@ object CustomTabsHelper {
     private fun hasSpecializedHandlerIntents(context: Context, intent: Intent): Boolean {
         try {
             val pm = context.packageManager
-            val handlers = pm.queryIntentActivities(
+            val handlers = pm.queryIntentActivitiesCompat(
                 intent,
-                PackageManager.GET_RESOLVED_FILTER
+                ResolveInfoFlagsCompat.of(PackageManager.GET_RESOLVED_FILTER.toLong())
             )
             if (handlers.isEmpty()) {
                 return false

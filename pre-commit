@@ -2,34 +2,49 @@
 set -e
 
 runKtlint () {
-    CHANGED_KT_FILES="$(git --no-pager diff --name-status --no-color --cached | awk '$1 != "D" && $2 ~ /\.kts|\.kt/ { print $2 }')"
+    # Following code was generated automatically by running ./gradlew addKtlintFormatGitPreCommitHook
+    # for reference, see https://github.com/JLLeitschuh/ktlint-gradle#additional-helper-tasks
+    # and for the implementation, https://github.com/JLLeitschuh/ktlint-gradle/blob/master/plugin/src/main/kotlin/org/jlleitschuh/gradle/ktlint/GitHook.kt
+    # The only change made was replacing "exit" for "return", as this is running inside a function
+    ######## KTLINT-GRADLE HOOK START ########
 
-    if [ -z "$CHANGED_KT_FILES" ]; then
-        echo "No Kotlin staged files. Hence, skipping pre-commit Ktlint run."
+    CHANGED_FILES="$(git --no-pager diff --name-status --no-color --cached | awk '$1 != "D" && $NF ~ /\.kts?$/ { print $NF }')"
+
+    if [ -z "$CHANGED_FILES" ]; then
+        echo "No Kotlin staged files."
         return 0
     fi;
 
-    echo "Running Ktlint over these files:"
-    echo "$CHANGED_KT_FILES"
+    echo "Running ktlint over these files:"
+    echo "$CHANGED_FILES"
 
+    diff=.git/unstaged-ktlint-git-hook.diff
+    git diff --color=never > $diff
+    if [ -s $diff ]; then
+      git apply -R $diff
+    fi
 
-    # -q removes noise from the output if it fails.
-    # TODO: -w is better, but https://github.com/JLLeitschuh/ktlint-gradle/issues/457 adds noise
-    # -w should display: "CriticalExceptionTest.kt:19:1 Wildcard import (cannot be auto-corrected)"
-    # Cleaning and retrying only if the ktlint fails
-    if ! ./gradlew -q ktlintFormat ; then
-        echo "Cleaning the project and retrying."
-        # Clean is required because of https://github.com/ankidroid/Anki-Android/issues/9521
-        ./gradlew clean
-        ./gradlew -q ktlintFormat
-    fi;
+    ./gradlew --quiet ktlintFormat -PinternalKtlintGitFilter="$CHANGED_FILES"
+    gradle_command_exit_code=$?
 
-    echo "Completed ./gradlew ktlintFormat run."
-    echo "$CHANGED_KT_FILES" | while read -r file; do
-        if [ -f "$file" ]; then
-            git add "$file"
+    echo "Completed ktlint run."
+
+    echo "$CHANGED_FILES" | while read -r file; do
+        if [ -f $file ]; then
+            git add $file
         fi
     done
+
+
+    if [ -s $diff ]; then
+      git apply --ignore-whitespace $diff
+    fi
+    rm $diff
+    unset diff
+
+    echo "Completed ktlint hook."
+    exit $gradle_command_exit_code
+    ######## KTLINT-GRADLE HOOK END ########
 }
 
 runPrettier () {
@@ -40,8 +55,14 @@ runPrettier () {
         return 0
     fi
 
-    # Run prettier over all Javascript files
-    npx --yes prettier --ignore-unknown --write AnkiDroid/**/*.js
+    CHANGED_JS_FILES="$(git --no-pager diff --name-status --no-color --cached | awk '$1 != "D" && $2 ~ /\.js/ { print $2 }')"
+        if [ -z "$CHANGED_JS_FILES" ]; then
+            echo "No Javascript staged files. Hence, skipping pre-commit Prettier run."
+            return 0
+        fi;
+
+    # Prettify changed files
+    echo "$CHANGED_JS_FILES" | xargs npx prettier --ignore-unknown --write
 
     echo "Completed npx prettier run."
     echo "$CHANGED_JS_FILES" | while read -r file; do
@@ -52,5 +73,5 @@ runPrettier () {
 }
 
 runKtlint
-runPrettier
+runPrettier || :; # || to avoid cancelling the commit if there is an error with Prettier
 echo "Completed the pre-commit hook."

@@ -17,6 +17,8 @@
 package com.ichi2.anki.servicelayer.scopedstorage
 
 import androidx.annotation.CheckResult
+import androidx.core.content.edit
+import com.ichi2.anki.CollectionHelper
 import com.ichi2.anki.RobolectricTest
 import com.ichi2.anki.model.DiskFile
 import com.ichi2.anki.servicelayer.ScopedStorageService
@@ -47,15 +49,19 @@ private fun convertPathToMediaFile(media: Media, path: List<String>): File {
 /** A [File] reference to the AnkiDroid directory of the current collection */
 internal fun RobolectricTest.ankiDroidDirectory() = File(col.path).parentFile!!
 
+internal fun RobolectricTest.setLegacyStorage() {
+    getPreferences().edit { putString(CollectionHelper.PREF_COLLECTION_PATH, CollectionHelper.legacyAnkiDroidDirectory) }
+}
+
 /** Adds a file to collection.media which [Media] is not aware of */
 @CheckResult
 internal fun RobolectricTest.addUntrackedMediaFile(content: String, path: List<String>): DiskFile =
     addUntrackedMediaFile(col.media, content, path)
 
 fun RobolectricTest.assertMigrationInProgress() {
-    assertThat("the migration should be in progress", ScopedStorageService.userMigrationIsInProgress(this.targetContext), equalTo(true))
+    assertThat("the migration should be in progress", ScopedStorageService.mediaMigrationIsInProgress(this.targetContext), equalTo(true))
 }
 
 fun RobolectricTest.assertMigrationNotInProgress() {
-    assertThat("the migration should not be in progress", ScopedStorageService.userMigrationIsInProgress(this.targetContext), equalTo(false))
+    assertThat("the migration should not be in progress", ScopedStorageService.mediaMigrationIsInProgress(this.targetContext), equalTo(false))
 }

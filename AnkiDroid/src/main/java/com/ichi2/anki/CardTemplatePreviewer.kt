@@ -22,22 +22,25 @@ import com.ichi2.anim.ActivityTransitionAnimation
 import com.ichi2.anki.UIUtils.showThemedToast
 import com.ichi2.anki.cardviewer.PreviewLayout
 import com.ichi2.anki.cardviewer.PreviewLayout.Companion.createAndDisplay
+import com.ichi2.annotations.NeedsTest
 import com.ichi2.libanki.Card
 import com.ichi2.libanki.Collection
 import com.ichi2.libanki.Model
 import com.ichi2.libanki.Note
+import com.ichi2.libanki.TemplateManager
 import com.ichi2.libanki.TemplateManager.TemplateRenderContext.TemplateRenderOutput
 import com.ichi2.libanki.utils.NoteUtils
-import net.ankiweb.rsdroid.RustCleanup
+import net.ankiweb.rsdroid.BackendFactory
+import org.json.JSONObject
 import timber.log.Timber
 import java.io.IOException
-import java.util.*
 
 /**
  * The card template previewer intent must supply one or more cards to show and the index in the list from where
  * to begin showing them. Special rules are applied if the list size is 1 (i.e., no scrolling
  * buttons will be shown).
  */
+@NeedsTest("after switch to new schema as default, add test to confirm audio tags rendered")
 open class CardTemplatePreviewer : AbstractFlashcardViewer() {
     private var mEditedModelFileName: String? = null
     private var mEditedModel: Model? = null
@@ -64,13 +67,11 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
         private set
     private var mAllFieldsNull = true
     private var mCardType: String? = null
-    @JvmField
-    protected var mPreviewLayout: PreviewLayout? = null
+    protected var previewLayout: PreviewLayout? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         if (showedActivityFailedScreen(savedInstanceState)) {
             return
         }
-        Timber.d("onCreate()")
         super.onCreate(savedInstanceState)
         var parameters = savedInstanceState
         if (parameters == null) {
@@ -102,7 +103,7 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
 
     override fun onResume() {
         super.onResume()
-        if (mCurrentCard == null || mOrdinal < 0) {
+        if (currentCard == null || mOrdinal < 0) {
             Timber.e("CardTemplatePreviewer started with empty card list or invalid index")
             closeCardTemplatePreviewer()
         }
@@ -130,36 +131,31 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
         closeCardTemplatePreviewer()
     }
 
-    override fun setTitle() {
-        if (supportActionBar != null) {
-            supportActionBar?.setTitle(R.string.preview_title)
-        }
-    }
-
     override fun initLayout() {
         super.initLayout()
-        mTopBarLayout!!.visibility = View.GONE
+        topBarLayout!!.visibility = View.GONE
         findViewById<View>(R.id.answer_options_layout).visibility = View.GONE
-        mPreviewLayout = createAndDisplay(this, mToggleAnswerHandler)
-        mPreviewLayout!!.setOnPreviousCard { onPreviousTemplate() }
-        mPreviewLayout!!.setOnNextCard { onNextTemplate() }
-        mPreviewLayout!!.hideNavigationButtons()
-        mPreviewLayout!!.setPrevButtonEnabled(false)
+        findViewById<View>(R.id.bottom_area_layout).visibility = View.VISIBLE
+        previewLayout = createAndDisplay(this, mToggleAnswerHandler)
+        previewLayout!!.setOnPreviousCard { onPreviousTemplate() }
+        previewLayout!!.setOnNextCard { onNextTemplate() }
+        previewLayout!!.hideNavigationButtons()
+        previewLayout!!.setPrevButtonEnabled(false)
     }
 
     override fun displayCardQuestion() {
         super.displayCardQuestion()
         mShowingAnswer = false
-        mPreviewLayout!!.setShowingAnswer(false)
+        previewLayout!!.setShowingAnswer(false)
     }
 
     override fun displayCardAnswer() {
         if (mAllFieldsNull && mCardType != null && mCardType == getString(R.string.basic_typing_model_name)) {
-            mAnswerField!!.setText(getString(R.string.basic_answer_sample_text_user))
+            answerField!!.setText(getString(R.string.basic_answer_sample_text_user))
         }
         super.displayCardAnswer()
         mShowingAnswer = true
-        mPreviewLayout!!.setShowingAnswer(true)
+        previewLayout!!.setShowingAnswer(true)
     }
 
     override fun hideEaseButtons() {
@@ -204,8 +200,8 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
     private fun onTemplateIndexChanged() {
         val prevBtnEnabled = isPrevBtnEnabled(templateIndex)
         val nextBtnEnabled = isNextBtnEnabled(templateIndex)
-        mPreviewLayout!!.setPrevButtonEnabled(prevBtnEnabled)
-        mPreviewLayout!!.setNextButtonEnabled(nextBtnEnabled)
+        previewLayout!!.setPrevButtonEnabled(prevBtnEnabled)
+        previewLayout!!.setNextButtonEnabled(nextBtnEnabled)
         setCurrentCardFromNoteEditorBundle(col)
         displayCardQuestion()
     }
@@ -235,9 +231,9 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
             // loading from the note editor
             val toPreview = setCurrentCardFromNoteEditorBundle(col)
             if (toPreview != null) {
-                mTemplateCount = getCol().findTemplates(toPreview.note()).size
+                mTemplateCount = col.findTemplates(toPreview.note()).size
                 if (mTemplateCount >= 2) {
-                    mPreviewLayout!!.showNavigationButtons()
+                    previewLayout!!.showNavigationButtons()
                 }
             }
         } else {
@@ -249,13 +245,13 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
             } else if (mEditedModel != null) { // bare note type (not coming from note editor), or new card template
                 Timber.d("onCreate() CardTemplatePreviewer started with edited model and template index, displaying blank to preview formatting")
                 currentCard = getDummyCard(mEditedModel!!, mOrdinal)
-                if (mCurrentCard == null) {
+                if (currentCard == null) {
                     showThemedToast(applicationContext, getString(R.string.invalid_template), false)
                     closeCardTemplatePreviewer()
                 }
             }
         }
-        if (mCurrentCard == null) {
+        if (currentCard == null) {
             showThemedToast(applicationContext, getString(R.string.invalid_template), false)
             closeCardTemplatePreviewer()
             return
@@ -275,18 +271,18 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
         assert(mNoteEditorBundle != null)
         currentCard = getDummyCard(mEditedModel, templateIndex, getBundleEditFields(mNoteEditorBundle))
         // example: a basic card with no fields provided
-        if (mCurrentCard == null) {
+        if (currentCard == null) {
             return null
         }
         val newDid = mNoteEditorBundle!!.getLong("did")
         if (col.decks.isDyn(newDid)) {
-            mCurrentCard!!.oDid = mCurrentCard!!.did
+            currentCard!!.oDid = currentCard!!.did
         }
-        mCurrentCard!!.did = newDid
-        val currentNote = mCurrentCard!!.note()
+        currentCard!!.did = newDid
+        val currentNote = currentCard!!.note()
         val tagsList = mNoteEditorBundle!!.getStringArrayList("tags")
         NoteUtils.setTags(currentNote, tagsList)
-        return mCurrentCard
+        return currentCard
     }
 
     private fun getLabels(fieldValues: MutableList<String>) {
@@ -300,16 +296,15 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
 
     private fun getBundleEditFields(noteEditorBundle: Bundle?): MutableList<String> {
         val noteFields = noteEditorBundle!!.getBundle("editFields")
-            ?: return ArrayList()
+            ?: return mutableListOf()
         // we map from "int" -> field, but the order isn't guaranteed, and there may be skips.
         // so convert this to a list of strings, with null in place of the invalid fields
         val elementCount = noteFields.keySet().stream().map { s: String -> s.toInt() }.max { obj: Int, anotherInteger: Int? -> obj.compareTo(anotherInteger!!) }.orElse(-1) + 1
-        val ret = arrayOfNulls<String>(elementCount)
-        Arrays.fill(ret, "") // init array, nulls cause a crash
+        val ret = Array(elementCount) { "" } // init array, nulls cause a crash
         for (fieldOrd in noteFields.keySet()) {
-            ret[fieldOrd.toInt()] = noteFields.getString(fieldOrd)
+            ret[fieldOrd.toInt()] = noteFields.getString(fieldOrd)!!
         }
-        return ArrayList(listOf(*ret))
+        return mutableListOf(*ret)
     }
 
     /**
@@ -317,7 +312,7 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
      * @param index The index in the templates for the model. NOT `ord`
      */
     fun getDummyCard(model: Model, index: Int): Card? {
-        return getDummyCard(model, index, model.fieldsNames)
+        return getDummyCard(model, index, model.fieldsNames.toMutableList())
     }
 
     /**
@@ -353,7 +348,8 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
             val template = col.findTemplates(n)[index]
             return col.getNewLinkedCard(PreviewerCard(col, n), n, template, 1, 0L, false)
         } catch (e: Exception) {
-            Timber.e(e, "getDummyCard() unable to create card")
+            // Calling code handles null return, so we can log this for developer's interest but move on
+            Timber.d(e, "getDummyCard() unable to create card")
         }
         return null
     }
@@ -370,7 +366,9 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
             mNote = null
         }
 
-        /* if we have an unsaved note saved, use it instead of a collection lookup */ override fun note(reload: Boolean): Note {
+        /* if we have an unsaved note saved, use it instead of a collection lookup */ override fun note(
+            reload: Boolean
+        ): Note {
             return mNote ?: super.note(reload)
         }
 
@@ -383,17 +381,34 @@ open class CardTemplatePreviewer : AbstractFlashcardViewer() {
         override val isEmpty: Boolean
             get() = if (mNote != null) {
                 false
-            } else super.isEmpty
+            } else {
+                super.isEmpty
+            }
 
         /** Override the method that fetches the model so we can render unsaved models  */
         override fun model(): Model {
             return mEditedModel ?: super.model()
         }
 
-        @RustCleanup("determine how Anki Desktop does this")
         override fun render_output(reload: Boolean, browser: Boolean): TemplateRenderOutput {
             if (render_output == null || reload) {
-                render_output = col.render_output_legacy(this, reload, browser)
+                render_output = if (BackendFactory.defaultLegacySchema) {
+                    col.render_output_legacy(this, reload, browser)
+                } else {
+                    val index = if (model().isCloze) {
+                        0
+                    } else {
+                        ord
+                    }
+                    val context = TemplateManager.TemplateRenderContext.from_card_layout(
+                        note(),
+                        this,
+                        model(),
+                        model().getJSONArray("tmpls")[index] as JSONObject,
+                        fill_empty = false
+                    )
+                    context.render()
+                }
             }
             return render_output!!
         }

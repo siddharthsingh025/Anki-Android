@@ -49,10 +49,10 @@ class LocaleLinting(private val locale: Locale) : RobolectricTest() {
 
     companion object {
         @Parameters(name = "{0}")
-        @JvmStatic
+        @JvmStatic // required for initParameters
         @Suppress("unused")
         fun initParameters(): Collection<Locale> {
-            return LanguageUtil.APP_LANGUAGES.map(::toLocale)
+            return LanguageUtil.APP_LANGUAGES.values.map(::toLocale)
         }
 
         private fun toLocale(localeCode: String): Locale {

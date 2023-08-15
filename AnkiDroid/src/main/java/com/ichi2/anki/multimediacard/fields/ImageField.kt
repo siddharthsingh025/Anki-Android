@@ -33,109 +33,70 @@ import java.io.File
 @KotlinCleanup("convert properties to single-line overrides")
 class ImageField : FieldBase(), IField {
     @get:JvmName("getImagePath_unused")
-    var imagePath: String? = null
-    private var mHasTemporaryMedia = false
+    var extraImagePathRef: String? = null
     private var mName: String? = null
-    override fun getType(): EFieldType {
-        return EFieldType.IMAGE
-    }
 
-    override fun setType(type: EFieldType): Boolean {
-        return false
-    }
+    override val type: EFieldType = EFieldType.IMAGE
 
-    override fun isModified(): Boolean {
-        return thisModified
-    }
+    override val isModified: Boolean
+        get() = thisModified
 
-    override fun getHtml(): String? {
-        return null
-    }
+    override var imagePath: String?
+        get() = extraImagePathRef
+        set(value) {
+            extraImagePathRef = value
+            setThisModified()
+        }
 
-    override fun setHtml(html: String): Boolean {
-        return false
-    }
+    override var audioPath: String? = null
 
-    override fun setImagePath(pathToImage: String): Boolean {
-        imagePath = pathToImage
-        setThisModified()
-        return true
-    }
+    override var text: String? = null
 
-    override fun getImagePath(): String? {
-        return imagePath
-    }
+    override var hasTemporaryMedia: Boolean = false
 
-    override fun setAudioPath(pathToAudio: String?): Boolean {
-        return false
-    }
+    override var name: String?
+        get() = mName
+        set(value) {
+            mName = value
+        }
 
-    override fun getAudioPath(): String? {
-        return null
-    }
-
-    override fun getText(): String? {
-        return null
-    }
-
-    override fun setText(text: String): Boolean {
-        return false
-    }
-
-    override fun setHasTemporaryMedia(hasTemporaryMedia: Boolean) {
-        mHasTemporaryMedia = hasTemporaryMedia
-    }
-
-    override fun hasTemporaryMedia(): Boolean {
-        return mHasTemporaryMedia
-    }
-
-    override fun getName(): String {
-        return mName!!
-    }
-
-    override fun setName(name: String) {
-        mName = name
-    }
-
-    override fun getFormattedValue(): String {
-        val file = File(getImagePath()!!)
-        return formatImageFileName(file)
-    }
+    override val formattedValue: String
+        get() {
+            val file = File(imagePath!!)
+            return formatImageFileName(file)
+        }
 
     override fun setFormattedString(col: Collection, value: String) {
-        imagePath = getImageFullPath(col, value)
+        extraImagePathRef = getImageFullPath(col, value)
     }
 
     companion object {
         private const val serialVersionUID = 4431611060655809687L
+
         @VisibleForTesting
         fun formatImageFileName(file: File): String {
             return if (file.exists()) {
-                String.format("<img src=\"%s\">", file.name)
+                """<img src="${file.name}">"""
             } else {
                 ""
             }
         }
 
         @VisibleForTesting
-        @KotlinCleanup("remove ? from value")
-        fun getImageFullPath(col: Collection, value: String?): String {
+        fun getImageFullPath(col: Collection, value: String): String {
             val path = parseImageSrcFromHtml(value)
-            if ("" == path) {
-                return ""
+
+            return if (path.isNotEmpty()) {
+                "${col.media.dir()}/$path"
+            } else {
+                ""
             }
-            val mediaDir = col.media.dir() + "/"
-            return mediaDir + path
         }
 
         @VisibleForTesting
         @CheckResult
-        @KotlinCleanup("remove ? from html")
-        fun parseImageSrcFromHtml(html: String?): String {
-            return if (html == null) {
-                ""
-            } else try {
+        fun parseImageSrcFromHtml(html: String): String {
+            return try {
                 val doc = Jsoup.parseBodyFragment(html)
                 val image = doc.selectFirst("img[src]") ?: return ""
                 image.attr("src")

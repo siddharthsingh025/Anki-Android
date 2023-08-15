@@ -29,6 +29,7 @@ import kotlin.test.assertNull
 
 class GestureMapperTest {
     private val mSut = GestureMapper()
+
     @Test
     fun zeroWidthReturnsNothing() {
         assertNull(mSut.gesture(0, 10, 10f, 10f))
@@ -66,13 +67,13 @@ class GestureMapperTest {
 
     companion object {
         @BeforeClass
-        @JvmStatic
+        @JvmStatic // required for @BeforeClass
         fun before() {
             mockkStatic(ViewConfiguration::class)
             every { ViewConfiguration.get(any()) } answers { mock(ViewConfiguration::class.java) }
         }
 
-        @JvmStatic
+        @JvmStatic // required for @AfterClass
         @AfterClass
         fun after() {
             unmockkStatic(ViewConfiguration::class)

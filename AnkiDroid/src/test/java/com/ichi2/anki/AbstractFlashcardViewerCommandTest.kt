@@ -29,182 +29,173 @@ import com.ichi2.anki.reviewer.CardMarker.Companion.FLAG_TURQUOISE
 import com.ichi2.anki.reviewer.CardMarker.FlagDef
 import com.ichi2.anki.reviewer.ReviewerUi.ControlBlock
 import com.ichi2.libanki.Card
-import com.ichi2.utils.KotlinCleanup
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.`is`
+import org.hamcrest.Matchers.equalTo
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mockito.*
 import org.mockito.invocation.InvocationOnMock
+import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
-@KotlinCleanup(
-    "is -> equalTo" +
-        "when -> whenever"
-)
 class AbstractFlashcardViewerCommandTest : RobolectricTest() {
     @Test
     fun doubleTapSetsNone() {
-        val viewer = viewer
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_RED)
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_RED)
+        val viewer = createViewer()
+        viewer.executeCommand(TOGGLE_FLAG_RED)
+        viewer.executeCommand(TOGGLE_FLAG_RED)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_NONE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_NONE))
     }
 
     @Test
     fun noneDoesNothing() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_UNSET_FLAG)
+        viewer.executeCommand(UNSET_FLAG)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_NONE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_NONE))
     }
 
     @Test
     fun doubleNoneDoesNothing() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_UNSET_FLAG)
-        viewer.executeCommand(COMMAND_UNSET_FLAG)
+        viewer.executeCommand(UNSET_FLAG)
+        viewer.executeCommand(UNSET_FLAG)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_NONE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_NONE))
     }
 
     @Test
     fun flagCanBeChanged() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_RED)
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_BLUE)
+        viewer.executeCommand(TOGGLE_FLAG_RED)
+        viewer.executeCommand(TOGGLE_FLAG_BLUE)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_BLUE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_BLUE))
     }
 
     @Test
     fun unsetUnsets() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_RED)
-        viewer.executeCommand(COMMAND_UNSET_FLAG)
+        viewer.executeCommand(TOGGLE_FLAG_RED)
+        viewer.executeCommand(UNSET_FLAG)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_NONE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_NONE))
     }
 
     @Test
     fun tapRedFlagSetsRed() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_RED)
+        viewer.executeCommand(TOGGLE_FLAG_RED)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_RED))
+        assertThat(viewer.lastFlag, equalTo(FLAG_RED))
     }
 
     @Test
     fun tapOrangeFlagSetsOrange() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_ORANGE)
+        viewer.executeCommand(TOGGLE_FLAG_ORANGE)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_ORANGE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_ORANGE))
     }
 
     @Test
     fun tapGreenFlagSesGreen() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_GREEN)
+        viewer.executeCommand(TOGGLE_FLAG_GREEN)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_GREEN))
+        assertThat(viewer.lastFlag, equalTo(FLAG_GREEN))
     }
 
     @Test
     fun tapBlueFlagSetsBlue() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_BLUE)
+        viewer.executeCommand(TOGGLE_FLAG_BLUE)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_BLUE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_BLUE))
     }
 
     @Test
     fun tapPinkFlagSetsPink() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_PINK)
+        viewer.executeCommand(TOGGLE_FLAG_PINK)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_PINK))
+        assertThat(viewer.lastFlag, equalTo(FLAG_PINK))
     }
 
     @Test
     fun tapTurquoiseFlagSetsTurquoise() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_TURQUOISE)
+        viewer.executeCommand(TOGGLE_FLAG_TURQUOISE)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_TURQUOISE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_TURQUOISE))
     }
 
     @Test
     fun tapPurpleFlagSetsPurple() {
-        val viewer = viewer
+        val viewer = createViewer()
 
-        viewer.executeCommand(COMMAND_TOGGLE_FLAG_PURPLE)
+        viewer.executeCommand(TOGGLE_FLAG_PURPLE)
 
-        assertThat(viewer.lastFlag, `is`(FLAG_PURPLE))
+        assertThat(viewer.lastFlag, equalTo(FLAG_PURPLE))
     }
 
     @Test
     fun doubleTapUnsets() {
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_RED)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_ORANGE)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_GREEN)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_BLUE)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_PINK)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_TURQUOISE)
-        testDoubleTapUnsets(COMMAND_TOGGLE_FLAG_PURPLE)
+        testDoubleTapUnsets(TOGGLE_FLAG_RED)
+        testDoubleTapUnsets(TOGGLE_FLAG_ORANGE)
+        testDoubleTapUnsets(TOGGLE_FLAG_GREEN)
+        testDoubleTapUnsets(TOGGLE_FLAG_BLUE)
+        testDoubleTapUnsets(TOGGLE_FLAG_PINK)
+        testDoubleTapUnsets(TOGGLE_FLAG_TURQUOISE)
+        testDoubleTapUnsets(TOGGLE_FLAG_PURPLE)
     }
 
     private fun testDoubleTapUnsets(command: ViewerCommand) {
-        val viewer = viewer
+        val viewer = createViewer()
 
         viewer.executeCommand(command)
         viewer.executeCommand(command)
 
-        assertThat(command.toString(), viewer.lastFlag, `is`(FLAG_NONE))
+        assertThat(command.toString(), viewer.lastFlag, equalTo(FLAG_NONE))
     }
 
-    @KotlinCleanup("rename the getter method to createViewer(), remove val")
-    private val viewer: CommandTestCardViewer
-        get() = CommandTestCardViewer(cardWith(FLAG_NONE))
+    private fun createViewer(): CommandTestCardViewer {
+        return CommandTestCardViewer(cardWith(FLAG_NONE))
+    }
 
     private fun cardWith(@Suppress("SameParameterValue") @FlagDef flag: Int): Card {
         val c = mock(Card::class.java)
         val flags = intArrayOf(flag)
-        `when`(c.userFlag()).then { flags[0] }
+        whenever(c.userFlag()).then { flags[0] }
         doAnswer { invocation: InvocationOnMock ->
             flags[0] = invocation.getArgument(0)
             null
-        }.`when`(c).setUserFlag(anyInt())
+        }.whenever(c).setUserFlag(anyInt())
         return c
     }
 
-    private class CommandTestCardViewer(currentCard: Card?) : Reviewer() {
+    private class CommandTestCardViewer(private var currentCardOverride: Card?) : Reviewer() {
         var lastFlag = 0
             private set
 
-        // we don't have getCol() here and we don't need the additional sound processing.
         override var currentCard: Card?
-            get() = super.currentCard
+            get() = currentCardOverride
             set(card) {
-                mCurrentCard = card
                 // we don't have getCol() here and we don't need the additional sound processing.
+                currentCardOverride = card
             }
-
-        override fun setTitle() {
-            // Intentionally blank
-        }
 
         override fun performReload() {
             // intentionally blank
@@ -216,17 +207,12 @@ class AbstractFlashcardViewerCommandTest : RobolectricTest() {
                 super.controlBlocked = controlBlocked
             }
 
-        override fun isControlBlocked(): Boolean {
-            return controlBlocked !== ControlBlock.UNBLOCKED
-        }
+        override val isControlBlocked: Boolean
+            get() = controlBlocked !== ControlBlock.UNBLOCKED
 
         override fun onFlag(card: Card?, @FlagDef flag: Int) {
             lastFlag = flag
-            mCurrentCard!!.setUserFlag(flag)
-        }
-
-        init {
-            this@CommandTestCardViewer.currentCard = currentCard
+            currentCard!!.setUserFlag(flag)
         }
     }
 }

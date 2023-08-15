@@ -22,10 +22,14 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.EditText
 import androidx.annotation.CheckResult
-import com.afollestad.materialdialogs.MaterialDialog
+import androidx.appcompat.app.AlertDialog
 import com.ichi2.anki.dialogs.DiscardChangesDialog
-import com.ichi2.utils.JSONObject
+import com.ichi2.utils.message
+import com.ichi2.utils.negativeButton
+import com.ichi2.utils.positiveButton
+import com.ichi2.utils.show
 import org.jetbrains.annotations.Contract
+import org.json.JSONObject
 import timber.log.Timber
 
 /** Allows specification of the Question and Answer format of a card template in the Card Browser
@@ -92,19 +96,17 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
     }
 
     private fun showDiscardChangesDialog() {
-        DiscardChangesDialog
-            .getDefault(this)
-            .onPositive { _, _ -> discardChangesAndClose() }
-            .show()
+        DiscardChangesDialog.showDialog(this, ::discardChangesAndClose)
     }
 
     private fun showRestoreDefaultDialog() {
-        MaterialDialog.Builder(this)
-            .positiveText(R.string.dialog_ok)
-            .negativeText(R.string.dialog_cancel)
-            .content(R.string.card_template_browser_appearance_restore_default_dialog)
-            .onPositive { _, _ -> restoreDefaultAndClose() }
-            .show()
+        AlertDialog.Builder(this).show {
+            positiveButton(R.string.dialog_ok) {
+                restoreDefaultAndClose()
+            }
+            negativeButton(R.string.dialog_cancel)
+            message(R.string.card_template_browser_appearance_restore_default_dialog)
+        }
     }
 
     public override fun onSaveInstanceState(outState: Bundle) {
@@ -123,6 +125,7 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
         mAnswerEditText.setText(bundle.getString(INTENT_ANSWER_FORMAT))
 
         enableToolbar()
+        setTitle(R.string.card_template_browser_appearance_title)
     }
 
     private fun answerHasChanged(intent: Intent): Boolean {
@@ -157,14 +160,15 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
 
     private fun saveAndExit() {
         Timber.i("Save and Exit")
-        val data = Intent()
-        data.putExtra(INTENT_QUESTION_FORMAT, questionFormat)
-        data.putExtra(INTENT_ANSWER_FORMAT, answerFormat)
+        val data = Intent().apply {
+            putExtra(INTENT_QUESTION_FORMAT, questionFormat)
+            putExtra(INTENT_ANSWER_FORMAT, answerFormat)
+        }
         setResult(RESULT_OK, data)
         finishActivityWithFade(this)
     }
 
-    fun hasChanges(): Boolean {
+    private fun hasChanges(): Boolean {
         return try {
             questionHasChanged(intent) || answerHasChanged(intent)
         } catch (e: Exception) {
@@ -183,18 +187,19 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
         }
 
         companion object {
-            @JvmStatic
             @Contract("null -> null")
             fun fromIntent(intent: Intent?): Result? {
                 return if (intent == null) {
                     null
-                } else try {
-                    val question = intent.getStringExtra(INTENT_QUESTION_FORMAT)
-                    val answer = intent.getStringExtra(INTENT_ANSWER_FORMAT)
-                    Result(question, answer)
-                } catch (e: Exception) {
-                    Timber.w(e, "Could not read result from intent")
-                    null
+                } else {
+                    try {
+                        val question = intent.getStringExtra(INTENT_QUESTION_FORMAT)
+                        val answer = intent.getStringExtra(INTENT_ANSWER_FORMAT)
+                        Result(question, answer)
+                    } catch (e: Exception) {
+                        Timber.w(e, "Could not read result from intent")
+                        null
+                    }
                 }
             }
         }
@@ -206,7 +211,7 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
 
         /** Specified the card browser should use the default template formatter  */
         const val VALUE_USE_DEFAULT = ""
-        @JvmStatic
+
         @CheckResult
         fun getIntentFromTemplate(context: Context, template: JSONObject): Intent {
             val browserQuestionTemplate = template.getString("bqfmt")
@@ -216,10 +221,10 @@ class CardTemplateBrowserAppearanceEditor : AnkiActivity() {
 
         @CheckResult
         fun getIntent(context: Context, questionFormat: String, answerFormat: String): Intent {
-            val intent = Intent(context, CardTemplateBrowserAppearanceEditor::class.java)
-            intent.putExtra(INTENT_QUESTION_FORMAT, questionFormat)
-            intent.putExtra(INTENT_ANSWER_FORMAT, answerFormat)
-            return intent
+            return Intent(context, CardTemplateBrowserAppearanceEditor::class.java).apply {
+                putExtra(INTENT_QUESTION_FORMAT, questionFormat)
+                putExtra(INTENT_ANSWER_FORMAT, answerFormat)
+            }
         }
     }
 }

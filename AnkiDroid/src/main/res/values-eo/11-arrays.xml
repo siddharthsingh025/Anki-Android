@@ -71,7 +71,7 @@
     <string name="new_spread_new_before_review">Novaj kartoj antaŭ ripetataj</string>
     <!-- override_font_labels -->
     <string name="override_font_if_missing">Kiam neniu tiparo difinita por kartoj</string>
-    <string name="override_font_always">Ĉiam</string>
+    <string name="override_font_always" comment="Option to always override font">Ĉiam</string>
     <!-- theme labels -->
     <string name="theme_follow_system">Laŭ operaciumo</string>
     <!-- day_theme_labels -->
@@ -89,14 +89,12 @@
     <string name="html_size_code_x_large">pli granda</string>
     <string name="html_size_code_xx_large">plej granda</string>
     <!-- gestures_labels -->
-    <string name="gesture_no_action">Neniu ago</string>
     <string name="gesture_answer_1">Responda butono 1</string>
     <string name="gesture_answer_2">Responda butono 2</string>
     <string name="gesture_answer_3">Responda butono 3</string>
     <string name="gesture_answer_4">Responda butono 4</string>
     <string name="gesture_answer_green">Konsilinda respondo (verde)</string>
     <string name="gesture_answer_better_recommended">Respondo pli bona ol konsilinda</string>
-    <string name="gesture_tag_note">Etikedi noton</string>
     <string name="gesture_play">Ludi aŭdvidaĵon</string>
     <string name="gesture_abort_learning">Ĉesi lernadon</string>
     <string name="gesture_flag_red">Baskuli ruĝan flagon</string>

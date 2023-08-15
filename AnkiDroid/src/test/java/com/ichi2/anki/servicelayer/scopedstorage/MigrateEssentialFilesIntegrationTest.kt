@@ -16,14 +16,11 @@
 
 package com.ichi2.anki.servicelayer.scopedstorage
 
-import androidx.core.content.edit
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.ichi2.anki.CollectionHelper
 import com.ichi2.anki.RobolectricTest
+import com.ichi2.anki.servicelayer.DestFolderOverride
 import com.ichi2.anki.servicelayer.ScopedStorageService
 import com.ichi2.annotations.NeedsTest
-import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
-import com.ichi2.testutils.assertThrows
 import org.hamcrest.CoreMatchers.containsString
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
@@ -31,18 +28,15 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers
-import org.mockito.Mockito
-import org.mockito.kotlin.KStubbing
-import org.mockito.kotlin.spy
 import org.robolectric.shadows.ShadowStatFs
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.io.path.Path
 import kotlin.io.path.pathString
+import kotlin.test.assertFailsWith
 
 /**
- * Test for [MigrateEssentialFiles.migrateEssentialFiles]
+ * Test for [MigrateEssentialFiles]
  */
 @RunWith(AndroidJUnit4::class)
 @NeedsTest("fails when you can't create the destination directory")
@@ -59,6 +53,8 @@ class MigrateEssentialFilesIntegrationTest : RobolectricTest() {
     override fun setUp() {
         super.setUp()
 
+        setLegacyStorage()
+
         // we need to access 'col' before we start
         col.basicCheck()
         destinationPath = File(Path(targetContext.getExternalFilesDir(null)!!.canonicalPath, "AnkiDroid-1").pathString)
@@ -74,12 +70,12 @@ class MigrateEssentialFilesIntegrationTest : RobolectricTest() {
     }
 
     @Test
-    fun migrate_essential_files_success() {
+    fun migrate_essential_files_success() = runTest {
         assertMigrationNotInProgress()
 
         val oldDeckPath = getPreferences().getString("deckPath", "")
 
-        migrateEssentialFiles()
+        migrateEssentialFilesForTest(targetContext, File(col.path).parent!!, DestFolderOverride.Subfolder(destinationPath))
 
         // assert the collection is open, working, and has been moved to the outPath
         assertThat(col.basicCheck(), equalTo(true))
@@ -98,8 +94,8 @@ class MigrateEssentialFilesIntegrationTest : RobolectricTest() {
     fun exception_if_not_enough_free_space_migrate_essential_files() {
         ShadowStatFs.reset()
 
-        val ex = assertThrows<MigrateEssentialFiles.UserActionRequiredException.OutOfSpaceException> {
-            migrateEssentialFiles()
+        val ex = assertFailsWith<MigrateEssentialFiles.UserActionRequiredException.OutOfSpaceException> {
+            ScopedStorageService.prepareAndValidateSourceAndDestinationFolders(targetContext)
         }
 
         assertThat(ex.message, containsString("More free space is required"))
@@ -107,23 +103,22 @@ class MigrateEssentialFilesIntegrationTest : RobolectricTest() {
 
     @Test
     fun exception_if_source_already_scoped() {
-        getPreferences().edit { putString(DECK_PATH, destinationPath.canonicalPath) }
-        CollectionHelper.getInstance().setColForTests(null)
-
-        val newDestination = File(destinationPath, "again")
-
-        val ex = assertThrows<IllegalStateException> {
-            MigrateEssentialFiles.migrateEssentialFiles(targetContext, newDestination)
+        val ex = assertFailsWith<IllegalStateException> {
+            ScopedStorageService.prepareAndValidateSourceAndDestinationFolders(targetContext, sourceOverride = destinationPath)
         }
 
-        assertThat(ex.message, containsString("Directory is already under scoped storage"))
+        assertThat(ex.message, containsString("Source directory is already under scoped storage"))
     }
 
     @Test
-    fun no_exception_if_directory_is_empty_directory_migrate_essential_files() {
+    fun no_exception_if_directory_is_empty_directory_migrate_essential_files() = runTest {
         assertThat("destination should not exist ($destinationPath)", destinationPath.exists(), equalTo(false))
 
-        assertDoesNotThrow { migrateEssentialFiles() }
+        migrateEssentialFilesForTest(
+            targetContext,
+            File(col.path).parent!!,
+            DestFolderOverride.Subfolder(destinationPath)
+        )
     }
 
     @Test
@@ -135,41 +130,10 @@ class MigrateEssentialFilesIntegrationTest : RobolectricTest() {
             it.write(1)
         }
 
-        val ex = assertThrows<IllegalStateException> {
-            migrateEssentialFiles()
+        val ex = assertFailsWith<IllegalStateException> {
+            ScopedStorageService.prepareAndValidateSourceAndDestinationFolders(targetContext, destOverride = DestFolderOverride.Subfolder(destinationPath))
         }
 
         assertThat(ex.message, containsString("Target directory was not empty"))
-    }
-
-    /**
-     * A race condition can occur between closing and locking the collection.
-     *
-     * We add a retry mechanism to confirm that this works
-     */
-    @Test
-    fun retry_succeeds_if_race_condition_occurs() {
-        var timesCalled = 0
-
-        migrateEssentialFiles {
-            Mockito.doAnswer {
-                // if it's the first time, open the collection instead of checking for corruption
-                // on the retry this is not true
-                if (timesCalled == 0) {
-                    col.basicCheck()
-                }
-                timesCalled++
-            }.`when`(it).throwIfCollectionIsCorrupted(ArgumentMatchers.anyString())
-        }
-
-        assertThat(timesCalled, equalTo(3))
-    }
-
-    private fun migrateEssentialFiles(stubbing: (KStubbing<MigrateEssentialFiles>.(MigrateEssentialFiles) -> Unit)? = null) {
-
-        fun mock(e: MigrateEssentialFiles): MigrateEssentialFiles {
-            return if (stubbing == null) e else spy(e, stubbing)
-        }
-        MigrateEssentialFiles.migrateEssentialFiles(targetContext, destinationPath, ::mock)
     }
 }

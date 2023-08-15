@@ -15,29 +15,25 @@
  */
 package com.ichi2.utils
 
-import org.acra.util.IOUtils.*
+import com.ichi2.utils.FileUtil.isPrefix
+import org.acra.util.IOUtils.writeStringToFile
 import org.hamcrest.CoreMatchers
-import org.hamcrest.MatcherAssert.*
-import org.hamcrest.core.Is.*
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.core.IsEqual.equalTo
 import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
 import java.io.IOException
-import java.lang.Exception
-import java.util.ArrayList
-import kotlin.Throws
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-@KotlinCleanup("is -> equalTo")
-@KotlinCleanup("IDE lint")
 class FileUtilTest {
-    @JvmField
-    @Rule
+    @get:Rule
     var temporaryDirectory = TemporaryFolder()
-    var testDirectorySize: Long = 0
+    private var testDirectorySize: Long = 0
+
     @Throws(Exception::class)
     private fun createSrcFilesForTest(temporaryRoot: File, testDirName: String): File {
         val grandParentDir = File(temporaryRoot, testDirName)
@@ -46,19 +42,19 @@ class FileUtilTest {
         val childDir2 = File(parentDir, "child2")
         val grandChildDir = File(childDir, "grandChild")
         val grandChild2Dir = File(childDir2, "grandChild2")
-        val files = ArrayList<File>()
-        files.add(File(grandParentDir, "file1.txt"))
-        files.add(File(parentDir, "file2.txt"))
-        files.add(File(childDir, "file3.txt"))
-        files.add(File(childDir2, "file4.txt"))
-        files.add(File(grandChildDir, "file5.txt"))
-        files.add(File(grandChildDir, "file6.txt"))
+        val files = listOf(
+            File(grandParentDir, "file1.txt"),
+            File(parentDir, "file2.txt"),
+            File(childDir, "file3.txt"),
+            File(childDir2, "file4.txt"),
+            File(grandChildDir, "file5.txt"),
+            File(grandChildDir, "file6.txt")
+        )
         grandChildDir.mkdirs()
         grandChild2Dir.mkdirs()
-        for (i in files.indices) {
-            val file = files[i]
+        files.forEachIndexed { i, file ->
             writeStringToFile(file, "File " + (i + 1) + " called " + file.name)
-            testDirectorySize += file.length()
+            this.testDirectorySize += file.length()
         }
         return grandParentDir
     }
@@ -71,10 +67,13 @@ class FileUtilTest {
 
         // Test for success scenario
         val dir = createSrcFilesForTest(temporaryRootDir, "dir")
-        assertEquals(FileUtil.getDirectorySize(dir), testDirectorySize)
+        val dirInfo = FileUtil.DirectoryContentInformation.fromDirectory(dir)
+        assertEquals(testDirectorySize, dirInfo.totalBytes, "Directory size is not as expected")
+        assertEquals(5, dirInfo.numberOfSubdirectories, "Wrong number of subdirectories")
+        assertEquals(6, dirInfo.numberOfFiles, "Wrong number of files")
 
         // Test for failure scenario by passing a file as an argument instead of a directory
-        assertThrows(IOException::class.java) { FileUtil.getDirectorySize(File(dir, "file1.txt")) }
+        assertThrows(IOException::class.java) { FileUtil.DirectoryContentInformation.fromDirectory(File(dir, "file1.txt")) }
     }
 
     @Test
@@ -148,32 +147,66 @@ class FileUtilTest {
     @Test
     fun testFileNameNormal() {
         val fileNameAndExtension = FileUtil.getFileNameAndExtension("abc.jpg")
-        assertThat(fileNameAndExtension!!.key, `is`("abc"))
-        assertThat(fileNameAndExtension.value, `is`(".jpg"))
+        assertThat(fileNameAndExtension!!.key, equalTo("abc"))
+        assertThat(fileNameAndExtension.value, equalTo(".jpg"))
     }
 
     @Test
     fun testFileNameTwoDot() {
         val fileNameAndExtension = FileUtil.getFileNameAndExtension("a.b.c")
-        assertThat(fileNameAndExtension!!.key, `is`("a.b"))
-        assertThat(fileNameAndExtension.value, `is`(".c"))
+        assertThat(fileNameAndExtension!!.key, equalTo("a.b"))
+        assertThat(fileNameAndExtension.value, equalTo(".c"))
     }
 
     @Test
     @Throws(IOException::class)
     fun fileSizeTest() {
-        assertThat("deleted file should have 0 size", FileUtil.getSize(File("test.txt")), `is`(0L))
-
+        fun sizeFromDir(file: File) = FileUtil.DirectoryContentInformation.fromDirectory(file).totalBytes
         val temporaryRootDir = temporaryDirectory.newFolder("tempRootDir")
 
-        assertThat("empty directory should have 0 size", FileUtil.getSize(temporaryRootDir), `is`(0L))
+        assertThat("empty directory should have 0 size", sizeFromDir(temporaryRootDir), equalTo(0L))
 
         val textFile = File(temporaryRootDir, "tmp.txt")
         writeStringToFile(textFile, "Hello World")
 
         val expectedLength = "Hello World".length.toLong()
-        assertThat("File size should return text length", FileUtil.getSize(textFile), `is`(expectedLength))
+        assertThrows("fromDirectory fails on files", IOException::class.java) {
+            sizeFromDir(
+                textFile
+            )
+        }
 
-        assertThat("Should return file lengths", FileUtil.getSize(temporaryRootDir), `is`(expectedLength))
+        assertThat("Should return file lengths", sizeFromDir(temporaryRootDir), equalTo(expectedLength))
+    }
+
+    @Test
+    fun filePrefixTest() {
+        val temporaryRootDir = temporaryDirectory.newFolder("tempRootDir")
+        val prefixFile = File(temporaryRootDir, "prefix")
+        writeStringToFile(prefixFile, "Hello ")
+        val fullFile = File(temporaryRootDir, "full")
+        writeStringToFile(fullFile, "Hello World")
+        assertEquals(FileUtil.FilePrefix.STRICT_PREFIX, isPrefix(prefixFile, fullFile))
+        assertEquals(FileUtil.FilePrefix.STRICT_SUFFIX, isPrefix(fullFile, prefixFile))
+    }
+
+    @Test
+    fun fileNotPrefixTest() {
+        val temporaryRootDir = temporaryDirectory.newFolder("tempRootDir")
+        val prefixFile = File(temporaryRootDir, "prefix")
+        writeStringToFile(prefixFile, "Hi World")
+        val fullFile = File(temporaryRootDir, "full")
+        writeStringToFile(fullFile, "Hello World")
+        assertEquals(FileUtil.FilePrefix.NOT_PREFIX, isPrefix(prefixFile, fullFile))
+    }
+
+    @Test
+    fun fileEqualTest() {
+        val temporaryRootDir = temporaryDirectory.newFolder("tempRootDir")
+        val prefixFile = File(temporaryRootDir, "prefix")
+        writeStringToFile(prefixFile, "Hello World")
+        val fullFile = File(temporaryRootDir, "full")
+        writeStringToFile(fullFile, "Hello World")
+        assertEquals(FileUtil.FilePrefix.EQUAL, isPrefix(prefixFile, fullFile))
     }
 }

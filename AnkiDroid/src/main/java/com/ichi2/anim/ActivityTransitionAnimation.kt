@@ -4,12 +4,13 @@ package com.ichi2.anim
 
 import android.app.Activity
 import android.content.Context
+import android.os.Parcelable
 import android.util.LayoutDirection
 import androidx.core.app.ActivityOptionsCompat
 import com.ichi2.anki.R
+import kotlinx.parcelize.Parcelize
 
 object ActivityTransitionAnimation {
-    @JvmStatic
     fun slide(activity: Activity, direction: Direction?) {
         when (direction) {
             Direction.START -> if (isRightToLeft(activity)) {
@@ -36,7 +37,6 @@ object ActivityTransitionAnimation {
         }
     }
 
-    @JvmStatic
     fun getAnimationOptions(activity: Activity, direction: Direction?): ActivityOptionsCompat {
         return when (direction) {
             Direction.START -> if (isRightToLeft(activity)) ActivityOptionsCompat.makeCustomAnimation(activity, R.anim.slide_right_in, R.anim.slide_right_out) else ActivityOptionsCompat.makeCustomAnimation(activity, R.anim.slide_left_in, R.anim.slide_left_out)
@@ -58,7 +58,29 @@ object ActivityTransitionAnimation {
         return c.resources.configuration.layoutDirection == LayoutDirection.RTL
     }
 
-    enum class Direction {
+    @Parcelize
+    enum class Direction : Parcelable {
         START, END, FADE, UP, DOWN, RIGHT, LEFT, DEFAULT, DIALOG_EXIT, NONE
+    }
+
+    /**
+     * @return inverse transition of [direction]
+     * if there isn't one, return the same [direction]
+     */
+    fun getInverseTransition(direction: Direction): Direction {
+        return when (direction) {
+            // Directional transitions which should return their opposites
+            Direction.RIGHT -> Direction.LEFT
+            Direction.LEFT -> Direction.RIGHT
+            Direction.UP -> Direction.DOWN
+            Direction.DOWN -> Direction.UP
+            Direction.START -> Direction.END
+            Direction.END -> Direction.START
+            // Non-directional transitions which should return themselves
+            Direction.FADE -> Direction.FADE
+            Direction.DEFAULT -> Direction.DEFAULT
+            Direction.NONE -> Direction.NONE
+            Direction.DIALOG_EXIT -> Direction.DIALOG_EXIT
+        }
     }
 }

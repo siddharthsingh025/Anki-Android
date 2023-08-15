@@ -3,12 +3,14 @@
     <words>
       <w>Aedict</w>
       <w>Affero</w>
+      <w>Awaitable</w>
       <w>Beolingus</w>
       <w>CROWDIN</w>
       <w>CrowdIn</w>
       <w>DOWNGRADABLE</w>
       <w>Glosbe</w>
       <w>NONINFRINGEMENT</w>
+      <w>Notetypes</w>
       <w>Pictogrammers</w>
       <w>SuperMemo</w>
       <w>Unbury</w>
@@ -23,6 +25,7 @@
       <w>autoreport</w>
       <w>barfoo</w>
       <w>beolingus</w>
+      <w>brayan</w>
       <w>canonify</w>
       <w>cardbrowser</w>
       <w>cardviewer</w>
@@ -50,6 +53,7 @@
       <w>freqs</w>
       <w>furigana</w>
       <w>gamepad</w>
+      <w>generifies</w>
       <w>glosbe</w>
       <w>helloworld</w>
       <w>ifnull</w>
@@ -59,6 +63,7 @@
       <w>lateinit</w>
       <w>legendable</w>
       <w>lexed</w>
+      <w>lightblue</w>
       <w>lightpencolor</w>
       <w>linebreaks</w>
       <w>mbit</w>
@@ -67,6 +72,7 @@
       <w>misclicks</w>
       <w>munge</w>
       <w>mutliselect</w>
+      <w>notetypes</w>
       <w>numpad</w>
       <w>onboarding</w>
       <w>optin</w>
@@ -83,6 +89,8 @@
       <w>rerender</w>
       <w>resync</w>
       <w>retryable</w>
+      <w>searchview</w>
+      <w>searchview's</w>
       <w>servicelayer</w>
       <w>sinh</w>
       <w>spacebar</w>

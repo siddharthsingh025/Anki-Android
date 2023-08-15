@@ -20,40 +20,38 @@ import android.view.View
 import android.widget.ImageButton
 import androidx.annotation.VisibleForTesting
 import androidx.appcompat.widget.TooltipCompat
-import androidx.core.view.ActionProvider
+import com.ichi2.anki.ActionProviderCompat
 import com.ichi2.anki.R
-import com.ichi2.utils.KotlinCleanup
 
 /**
  * An Rtl version of a normal action view, where the drawable is mirrored
  */
-@KotlinCleanup("auto-lint class")
-class RtlCompliantActionProvider(context: Context) : ActionProvider(context) {
-    @JvmField
+class RtlCompliantActionProvider(context: Context) : ActionProviderCompat(context) {
     @VisibleForTesting
     val mActivity: Activity
 
     /**
-     * Deprecated method, no need to set it up.
-     * https://developer.android.com/reference/kotlin/androidx/core/view/ActionProvider#oncreateactionview
+     * The action to perform when clicking the associated menu item. By default this delegates to
+     * the activity's [Activity.onOptionsItemSelected] callback, but a custom action can be set and
+     * used instead.
      */
-    @Deprecated("")
-    override fun onCreateActionView(): View? {
-        return null
+    var clickHandler: (Activity, MenuItem) -> Unit = { activity, menuItem ->
+        activity.onOptionsItemSelected(menuItem)
     }
 
     override fun onCreateActionView(forItem: MenuItem): View {
-        val actionView = ImageButton(context, null, R.attr.actionButtonStyle)
+        val actionView = ImageButton(context, null, android.R.attr.actionButtonStyle)
         TooltipCompat.setTooltipText(actionView, forItem.title)
-        val iconDrawable = forItem.icon
-        iconDrawable.isAutoMirrored = true
-        actionView.setImageDrawable(iconDrawable)
+        forItem.icon?.let {
+            it.isAutoMirrored = true
+            actionView.setImageDrawable(it)
+        }
         actionView.id = R.id.action_undo
         actionView.setOnClickListener {
             if (!forItem.isEnabled) {
                 return@setOnClickListener
             }
-            mActivity.onOptionsItemSelected(forItem)
+            clickHandler(mActivity, forItem)
         }
         return actionView
     }

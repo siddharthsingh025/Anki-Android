@@ -14,6 +14,8 @@
  *  this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+@file:Suppress("UnstableApiUsage")
+
 package com.ichi2.anki.lint.rules
 
 import com.android.SdkConstants
@@ -44,7 +46,6 @@ class NonPositionalFormatSubstitutions : ResourceXmlDetector() {
         /**
          * Whether there are any duplicate strings, including capitalization adjustments.
          */
-        @JvmField
         val ISSUE = Issue.create(
             "NonPositionalFormatSubstitutions",
             "Multiple substitutions specified in non-positional format",
@@ -63,7 +64,6 @@ class NonPositionalFormatSubstitutions : ResourceXmlDetector() {
     override fun getApplicableElements() = listOf(SdkConstants.TAG_STRING, SdkConstants.TAG_PLURALS)
 
     override fun visitElement(context: XmlContext, element: Element) {
-
         val elementsToCheck = when (element.tagName) {
             SdkConstants.TAG_PLURALS -> element.childrenSequence()
                 // skip if the item was not a plural (style, etc...)
@@ -109,7 +109,7 @@ class NonPositionalFormatSubstitutions : ResourceXmlDetector() {
 
         if (childNodes.length == 1) {
             val child = childNodes.item(0)
-            return if (child.nodeType != Node.TEXT_NODE) {
+            return if (child.nodeType != Node.TEXT_NODE && child.nodeType != Node.CDATA_SECTION_NODE) {
                 null
             } else {
                 StringFormatDetector.stripQuotes(child.nodeValue)

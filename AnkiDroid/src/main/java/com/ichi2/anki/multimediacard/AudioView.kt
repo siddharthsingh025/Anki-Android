@@ -336,7 +336,6 @@ class AudioView private constructor(context: Context, resPlay: Int, resPause: In
     }
 
     companion object {
-        @JvmStatic
         fun createRecorderInstance(
             context: Context,
             resPlay: Int,
@@ -353,13 +352,13 @@ class AudioView private constructor(context: Context, resPlay: Int, resPause: In
                 CrashReportService.sendExceptionReport(e, "Unable to create recorder tool bar")
                 showThemedToast(
                     context,
-                    context.getText(R.string.multimedia_editor_audio_view_create_failed).toString(), true
+                    context.getText(R.string.multimedia_editor_audio_view_create_failed).toString(),
+                    true
                 )
                 null
             }
         }
 
-        @JvmStatic
         fun generateTempAudioFile(context: Context): String? {
             val tempAudioPath: String?
             tempAudioPath = try {
@@ -374,8 +373,8 @@ class AudioView private constructor(context: Context, resPlay: Int, resPause: In
     }
 
     init {
-        mPlayer.setOnStoppingListener { status = Status.STOPPED }
-        mPlayer.setOnStoppedListener { notifyStop() }
+        mPlayer.onStoppingListener = { status = Status.STOPPED }
+        mPlayer.onStoppedListener = { notifyStop() }
         mAudioRecorder.setOnRecordingInitializedHandler { status = Status.INITIALIZED }
         mContext = context
         mResPlayImage = resPlay

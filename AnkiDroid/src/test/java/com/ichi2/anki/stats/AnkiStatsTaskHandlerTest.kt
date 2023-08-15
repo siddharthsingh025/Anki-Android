@@ -15,43 +15,25 @@
  ****************************************************************************************/
 package com.ichi2.anki.stats
 
-import android.widget.TextView
+import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.RobolectricTest
-import com.ichi2.anki.stats.AnkiStatsTaskHandler.Companion.createReviewSummaryStatistics
-import com.ichi2.libanki.Collection
-import com.ichi2.utils.KotlinCleanup
-import org.junit.Before
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
-import org.mockito.Mockito.*
-import org.mockito.MockitoAnnotations
-import java.util.concurrent.ExecutionException
+import kotlin.test.assertNull
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
-@KotlinCleanup("make mocks lateinit")
-@KotlinCleanup("`when` -> whenever")
 class AnkiStatsTaskHandlerTest : RobolectricTest() {
-    @Mock
-    private val mCol: Collection? = null
-
-    @Mock
-    private val mView: TextView? = null
-    @Before
-    override fun setUp() {
-        MockitoAnnotations.openMocks(this)
-        `when`(mCol!!.db).thenReturn(null)
-    }
 
     @Test
-    @Throws(ExecutionException::class, InterruptedException::class)
-    @Suppress("deprecation") // #7108: AsyncTask
-    fun testCreateReviewSummaryStatistics() {
-        verify(mCol, atMost(0))!!.db
-        val result = createReviewSummaryStatistics(mCol!!, mView!!)
-        result.get()
-        advanceRobolectricLooper()
-        verify(mCol, atLeast(1))!!.db
+    fun testCreateReviewSummaryStatistics() = runTest {
+        val deckPicker = startActivityNormallyOpenCollectionWithIntent(
+            DeckPicker::class.java,
+            Intent()
+        )
+        assertNull(AnkiStatsTaskHandler.getReviewSummaryStatisticsString(deckPicker))
     }
 }

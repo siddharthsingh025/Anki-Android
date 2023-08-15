@@ -21,6 +21,7 @@ import android.content.SharedPreferences
 import android.os.Build
 import android.webkit.WebSettings
 import androidx.annotation.VisibleForTesting
+import androidx.core.content.edit
 import com.brsanthu.googleanalytics.GoogleAnalytics
 import com.brsanthu.googleanalytics.GoogleAnalyticsConfig
 import com.brsanthu.googleanalytics.httpclient.OkHttpClientImpl
@@ -28,17 +29,18 @@ import com.brsanthu.googleanalytics.request.DefaultRequest
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.BuildConfig
 import com.ichi2.anki.R
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.utils.DisplayUtils
 import com.ichi2.utils.KotlinCleanup
 import com.ichi2.utils.WebViewDebugging.hasSetDataDirectory
 import org.acra.ACRA
 import org.acra.util.Installation
 import timber.log.Timber
-import java.lang.RuntimeException
 
 @KotlinCleanup("see if we can make variables lazy, or properties without the `s` prefix")
 object UsageAnalytics {
     const val ANALYTICS_OPTIN_KEY = "analyticsOptIn"
+
     @KotlinCleanup("lateinit")
     private var sAnalytics: GoogleAnalytics? = null
     private var sOriginalUncaughtExceptionHandler: Thread.UncaughtExceptionHandler? = null
@@ -53,7 +55,6 @@ object UsageAnalytics {
      *
      * @param context required to look up the analytics codes for the app
      */
-    @JvmStatic
     @Synchronized
     fun initialize(context: Context): GoogleAnalytics? {
         Timber.i("initialize()")
@@ -80,9 +81,9 @@ object UsageAnalytics {
                 .build()
         }
         installDefaultExceptionHandler()
-        val userPrefs = AnkiDroidApp.getSharedPrefs(context)
+        val userPrefs = context.sharedPrefs()
         optIn = userPrefs.getBoolean(ANALYTICS_OPTIN_KEY, false)
-        userPrefs.registerOnSharedPreferenceChangeListener { sharedPreferences: SharedPreferences, key: String ->
+        userPrefs.registerOnSharedPreferenceChangeListener { sharedPreferences: SharedPreferences, key: String? ->
             if (key == ANALYTICS_OPTIN_KEY) {
                 val newValue = sharedPreferences.getBoolean(key, false)
                 Timber.i("Setting analytics opt-in to: %b", newValue)
@@ -137,13 +138,9 @@ object UsageAnalytics {
         Thread.setDefaultUncaughtExceptionHandler(sOriginalUncaughtExceptionHandler)
         sOriginalUncaughtExceptionHandler = null
     }
-    /**
-     * Determine whether we are disabled or not
-     */
+
     /**
      * Allow users to enable or disable analytics
-     *
-     * @param optIn true allows collection of analytics information
      */
     @set:Synchronized
     private var optIn: Boolean
@@ -165,7 +162,6 @@ object UsageAnalytics {
      *
      * @param dryRun set to true if you want to log analytics hit but not dispatch
      */
-    @JvmStatic
     @Synchronized
     fun setDryRun(dryRun: Boolean) {
         Timber.i("setDryRun(): %s, warning dryRun is experimental", dryRun)
@@ -176,13 +172,12 @@ object UsageAnalytics {
      */
     @Synchronized
     fun reInitialize() {
-
         // send any pending async hits, re-chain default exception handlers and re-init
         Timber.i("reInitialize()")
         sAnalytics!!.flush()
         sAnalytics = null
         unInstallDefaultExceptionHandler()
-        initialize(AnkiDroidApp.getInstance().applicationContext)
+        initialize(AnkiDroidApp.instance.applicationContext)
     }
 
     /**
@@ -192,7 +187,6 @@ object UsageAnalytics {
      * @param object the result of Object.getClass().getSimpleName() will be used as the screen tag
      */
     @KotlinCleanup("rename object")
-    @JvmStatic
     fun sendAnalyticsScreenView(`object`: Any) {
         sendAnalyticsScreenView(`object`.javaClass.simpleName)
     }
@@ -212,18 +206,6 @@ object UsageAnalytics {
     }
 
     /**
-     * Send an arbitrary analytics event - these should be noun/verb pairs, e.g. "text to speech", "enabled"
-     *
-     * @param category the category of event, make your own but use a constant so reporting is good
-     * @param action   the action the user performed
-     */
-    @KotlinCleanup("remove when all callers are Kotlin")
-    @JvmStatic
-    fun sendAnalyticsEvent(category: String, action: String) {
-        sendAnalyticsEvent(category, action, Integer.MIN_VALUE, null)
-    }
-
-    /**
      * Send a detailed arbitrary analytics event, with noun/verb pairs and extra data if needed
      *
      * @param category the category of event, make your own but use a constant so reporting is good
@@ -231,8 +213,7 @@ object UsageAnalytics {
      * @param value    A value for the event, Integer.MIN_VALUE signifies caller shouldn't send the value
      * @param label    A label for the event, may be null
      */
-    @JvmStatic
-    fun sendAnalyticsEvent(category: String, action: String, value: Int = Int.MIN_VALUE, label: String? = null) {
+    fun sendAnalyticsEvent(category: String, action: String, value: Int? = null, label: String? = null) {
         Timber.d("sendAnalyticsEvent() category/action/value/label: %s/%s/%s/%s", category, action, value, label)
         if (!optIn) {
             return
@@ -241,7 +222,7 @@ object UsageAnalytics {
         if (label != null) {
             event.eventLabel(label)
         }
-        if (value > Int.MIN_VALUE) {
+        if (value != null) {
             event.eventValue(value)
         }
         event.sendAsync()
@@ -253,12 +234,10 @@ object UsageAnalytics {
      * @param t     Throwable to send for analysis
      * @param fatal whether it was fatal or not
      */
-    @JvmStatic
     fun sendAnalyticsException(t: Throwable, fatal: Boolean) {
         sendAnalyticsException(getCause(t).toString(), fatal)
     }
 
-    @JvmStatic
     @KotlinCleanup("convert to sequence")
     fun getCause(t: Throwable): Throwable {
         var cause: Throwable?
@@ -290,7 +269,9 @@ object UsageAnalytics {
         // if we're not under the ACRA process then we're fine to initialize a WebView
         return if (!ACRA.isACRASenderServiceProcess()) {
             true
-        } else hasSetDataDirectory()
+        } else {
+            hasSetDataDirectory()
+        }
 
         // If we have a custom data directory, then the crash will not occur.
     }
@@ -298,17 +279,16 @@ object UsageAnalytics {
     // A listener on this preference handles the rest
     var isEnabled: Boolean
         get() {
-            val userPrefs = AnkiDroidApp.getSharedPrefs(AnkiDroidApp.getInstance())
+            val userPrefs = AnkiDroidApp.instance.sharedPrefs()
             return userPrefs.getBoolean(ANALYTICS_OPTIN_KEY, false)
         }
         set(value) {
             // A listener on this preference handles the rest
-            AnkiDroidApp.getSharedPrefs(AnkiDroidApp.getInstance()).edit()
-                .putBoolean(ANALYTICS_OPTIN_KEY, value)
-                .apply()
+            AnkiDroidApp.instance.sharedPrefs().edit {
+                putBoolean(ANALYTICS_OPTIN_KEY, value)
+            }
         }
 
-    @JvmStatic
     @VisibleForTesting(otherwise = VisibleForTesting.NONE)
     fun resetForTests() {
         sAnalytics = null
@@ -321,7 +301,6 @@ object UsageAnalytics {
      */
     private class AndroidDefaultRequest : DefaultRequest() {
         fun setAndroidRequestParameters(context: Context): DefaultRequest {
-
             // Are we running on really large screens or small screens? Send raw screen size
             try {
                 val size = DisplayUtils.getDisplayDimensions(context)
@@ -361,6 +340,7 @@ object UsageAnalytics {
     object Category {
         const val SYNC = "Sync"
         const val LINK_CLICKED = "LinkClicked"
+        const val SETTING = "Setting"
     }
 
     /**
@@ -453,5 +433,147 @@ object UsageAnalytics {
 
         @AnalyticsConstant
         val IMPORT_COLPKG_FILE = "Import COLPKG"
+
+        @AnalyticsConstant
+        val IMPORT_CSV_FILE = "Import CSV"
+
+        @AnalyticsConstant
+        val TAPPED_SETTING = "Tapped setting"
+
+        @AnalyticsConstant
+        val CHANGED_SETTING = "Changed setting"
     }
+
+    // TODO use some kind of constants instead of directly strings
+    val preferencesWhoseChangesShouldBeReported = setOf(
+        // General
+        "reportErrorMode", // Error reporting mode
+        "pastePNG", // Paste clipboard images as PNG
+        "useCurrent", // Deck for new cards
+        "exitViaDoubleTapBack", // Press back twice to go back/exit
+        "anki_card_enable_external_context_menu", // ‘Anki Card’ Menu
+        "card_browser_enable_external_context_menu", // ‘Card Browser’ Menu
+        // Reviewing
+        "newSpread", // New card position
+        "dayOffset", // Start of next day
+        "learnCutoff", // Learn ahead limit
+        "timeLimit", // Timebox time limit
+        "timeoutAnswer", // Automatic display answer
+        "automaticAnswerAction", // Timeout answer
+        "timeoutAnswerSeconds", // Time to show answer
+        "timeoutQuestionSeconds", // Time to show next question
+        "keepScreenOn", // Disable screen timeout
+        "newTimezoneHandling", // New timezone handling
+        "doubleTapTimeInterval", // Double tap time interval (milliseconds)
+        // Sync
+        "syncFetchMedia", // Fetch media on sync
+        "automaticSyncMode", // Automatic synchronization
+        "showSyncStatusBadge", // Display synchronization status
+        "allowMetered", // Allow sync on metered connections
+        "force_full_sync", // Force full sync
+        // Appearance
+        "appTheme", // Theme
+        "dayTheme", // Day theme
+        "nightTheme", // Night theme
+        "deckPickerBackground", // Background image
+        "fullscreenMode", // Fullscreen mode
+        "centerVertically", // Center align
+        "showEstimates", // Show button time
+        "answerButtonPosition", // Answer buttons position
+        "showTopbar", // Show top bar
+        "showProgress", // Show remaining
+        "showETA", // Show ETA
+        "defaultFont", // Default font
+        "overrideFontBehavior", // Default font applicability
+        "browserEditorFont", // Browser and editor font
+        "card_browser_show_media_filenames", // Display filenames in card browser
+        // Controls
+        "gestures", // Enable gestures
+        "gestureCornerTouch", // 9-point touch
+        "gestureFullScreenNavigationDrawer", // Full screen navigation drawer
+        "swipeSensitivity", // Swipe sensitivity
+        "binding_SHOW_ANSWER",
+        "binding_FLIP_OR_ANSWER_EASE1",
+        "binding_FLIP_OR_ANSWER_EASE2",
+        "binding_FLIP_OR_ANSWER_EASE3",
+        "binding_FLIP_OR_ANSWER_EASE4",
+        "binding_FLIP_OR_ANSWER_RECOMMENDED",
+        "binding_FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED",
+        "binding_UNDO",
+        "binding_EDIT",
+        "binding_MARK",
+        "binding_BURY_CARD",
+        "binding_SUSPEND_CARD",
+        "binding_DELETE",
+        "binding_PLAY_MEDIA",
+        "binding_EXIT",
+        "binding_BURY_NOTE",
+        "binding_SUSPEND_NOTE",
+        "binding_TOGGLE_FLAG_RED",
+        "binding_TOGGLE_FLAG_ORANGE",
+        "binding_TOGGLE_FLAG_GREEN",
+        "binding_TOGGLE_FLAG_BLUE",
+        "binding_TOGGLE_FLAG_PINK",
+        "binding_TOGGLE_FLAG_TURQUOISE",
+        "binding_TOGGLE_FLAG_PURPLE",
+        "binding_UNSET_FLAG",
+        "binding_PAGE_UP",
+        "binding_PAGE_DOWN",
+        "binding_TAG",
+        "binding_CARD_INFO",
+        "binding_ABORT_AND_SYNC",
+        "binding_RECORD_VOICE",
+        "binding_REPLAY_VOICE",
+        "binding_TOGGLE_WHITEBOARD",
+        "binding_CLEAR_WHITEBOARD",
+        "binding_CHANGE_WHITEBOARD_PEN_COLOR",
+        "binding_SHOW_HINT",
+        "binding_SHOW_ALL_HINTS",
+        "binding_ADD_NOTE",
+        "binding_RESCHEDULE_NOTE",
+        // Accessibility
+        "cardZoom",
+        "imageZoom",
+        "answerButtonSize",
+        "showLargeAnswerButtons",
+        "relativeCardBrowserFontSize",
+        // Advanced
+        "deckPath", // AnkiDroid directory
+        "backupMax", // Max number of backups
+        "scrolling_buttons", // eReader
+        "double_scrolling", // Double scrolling
+        "softwareRender", // Disable card hardware render
+        "safeDisplay", // Safe display mode
+        "useInputTag", // Type answer into the card
+        "disableExtendedTextUi", // Disable Single-Field Edit Mode
+        "noteEditorNewlineReplace", // Replace newlines with HTML
+        "noCodeFormatting", // Simple typed answer formatting
+        "autoFocusTypeInAnswer", // Focus ‘type in answer’
+        "mediaImportAllowAllFiles", // Allow all files in media imports
+        "providerEnabled", // Enable AnkiDroid API
+        "v3sched", // v3 Scheduler
+        // App bar buttons
+        "reset_custom_buttons",
+        "customButtonUndo",
+        "customButtonScheduleCard",
+        "customButtonFlag",
+        "customButtonEditCard",
+        "customButtonTags",
+        "customButtonAddCard",
+        "customButtonReplay",
+        "customButtonCardInfo",
+        "customButtonSelectTts",
+        "customButtonDeckOptions",
+        "customButtonMarkCard",
+        "customButtonToggleMicToolBar",
+        "customButtonBury",
+        "customButtonSuspend",
+        "customButtonDelete",
+        "customButtonEnableWhiteboard",
+        "customButtonToggleStylus",
+        "customButtonSaveWhiteboard",
+        "customButtonWhiteboardPenColor",
+        "customButtonShowHideWhiteboard",
+        "customButtonClearWhiteboard"
+    )
 }

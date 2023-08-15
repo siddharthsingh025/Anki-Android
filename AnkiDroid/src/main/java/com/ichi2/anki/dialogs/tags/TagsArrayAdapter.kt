@@ -38,6 +38,7 @@ class TagsArrayAdapter(private val tags: TagsList, private val resources: Resour
         internal lateinit var node: TagTreeNode
         internal val mExpandButton: ImageButton = itemView.findViewById(R.id.id_expand_button)
         internal val mCheckBoxView: CheckBoxTriStates = itemView.findViewById(R.id.tags_dialog_tag_item_checkbox)
+
         // TextView contains the displayed tag (only the last part), while the full tag is stored in TagTreeNode
         internal val mTextView: TextView = itemView.findViewById(R.id.tags_dialog_tag_item_text)
 
@@ -85,10 +86,10 @@ class TagsArrayAdapter(private val tags: TagsList, private val resources: Resour
          * Get or set the checkbox state of the currently bound ViewHolder.
          * [vh] must be nonnull.
          */
-        private var checkBoxState: CheckBoxTriStates.State
-            get() = vh!!.mCheckBoxView.state
+        private var checkBoxState: CheckBoxTriStates.State?
+            get() = vh?.mCheckBoxView?.state
             set(state) {
-                vh!!.mCheckBoxView.state = state
+                state?.let { vh?.mCheckBoxView?.state = it }
             }
 
         /**
@@ -134,8 +135,8 @@ class TagsArrayAdapter(private val tags: TagsList, private val resources: Resour
         fun updateCheckBoxCycleStyle(tags: TagsList) {
             val realSubtreeCnt = subtreeCheckedCnt - if (tags.isChecked(tag)) 1 else 0
             val hasDescendantChecked = realSubtreeCnt > 0
-            vh!!.mCheckBoxView.cycleIndeterminateToChecked = hasDescendantChecked
-            vh!!.mCheckBoxView.cycleCheckedToIndeterminate = hasDescendantChecked
+            vh?.mCheckBoxView?.cycleIndeterminateToChecked = hasDescendantChecked
+            vh?.mCheckBoxView?.cycleCheckedToIndeterminate = hasDescendantChecked
         }
 
         /**
@@ -214,6 +215,12 @@ class TagsArrayAdapter(private val tags: TagsList, private val resources: Resour
      */
     private val mTagToIsExpanded: HashMap<String, Boolean>
 
+    /**
+     * Long click listener for each tag item. Used to add a subtag for the clicked tag.
+     * The full tag is passed through View.tag
+     */
+    var tagLongClickListener: View.OnLongClickListener? = null
+
     fun sortData() {
         tags.sort()
     }
@@ -250,12 +257,15 @@ class TagsArrayAdapter(private val tags: TagsList, private val resources: Resour
                 vh.mCheckBoxView.performClick()
             }
         }
+        // long clicking a tag opens the add tag dialog with the current tag as the prefix
+        vh.itemView.setOnLongClickListener(tagLongClickListener)
         return vh
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.node = getVisibleTagTreeNode(position)!!
         holder.node.vh = holder
+        holder.itemView.tag = holder.node.tag
 
         if (mHasVisibleNestedTag) {
             holder.mExpandButton.visibility = if (holder.node.isNotLeaf()) View.VISIBLE else View.INVISIBLE

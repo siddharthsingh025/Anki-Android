@@ -19,9 +19,10 @@
 package com.ichi2.anki
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.ichi2.utils.JSONObject
+import com.ichi2.libanki.Consts
 import org.hamcrest.CoreMatchers.equalTo
 import org.hamcrest.MatcherAssert.assertThat
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -35,7 +36,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         decks.select(didA)
@@ -60,7 +61,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         decks.select(didA)
@@ -83,7 +84,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         decks.select(didA)
@@ -141,7 +142,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         decks.select(didA)
@@ -170,7 +171,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         decks.select(didA)
@@ -237,7 +238,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         addNoteUsingBasicModel("baz", "bak")
@@ -316,7 +317,7 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         val models = col.models
         val decks = col.decks
         val didA = addDeck("Test")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didA)
         addNoteUsingBasicModel("foo", "bar")
         addNoteUsingBasicModel("baz", "bak")
@@ -346,5 +347,44 @@ class AnkiDroidJsAPITest : RobolectricTest() {
         data.put("version", "0.0.1")
         data.put("developer", "test@example.com")
         return data.toString()
+    }
+
+    @Test
+    fun ankiResetProgressTest() {
+        val n = addNoteUsingBasicModel("Front", "Back")
+        val c = n.firstCard()
+
+        // Make card review with 28L due and 280% ease
+        c.type = Consts.CARD_TYPE_REV
+        c.due = 28L
+        c.factor = 2800
+        c.ivl = 8
+
+        // before reset
+        assertEquals("Card due before reset", 28L, c.due)
+        assertEquals("Card interval before reset", 8, c.ivl)
+        assertEquals("Card ease before reset", 2800, c.factor)
+        assertEquals("Card type before reset", Consts.CARD_TYPE_REV, c.type)
+
+        val reviewer: Reviewer = startReviewer()
+        waitForAsyncTasksToComplete()
+
+        val javaScriptFunction = reviewer.javaScriptFunction()
+        // init js api
+        javaScriptFunction.init(initJsApiContract())
+        // get card id for testing due
+        val cardId = javaScriptFunction.ankiGetCardId()
+
+        // test that card reset
+        assertTrue("Card progress reset", javaScriptFunction.ankiResetProgress())
+        waitForAsyncTasksToComplete()
+
+        // verify that card progress reset
+        // --------------------------------
+        val cardAfterReset = col.getCard(cardId)
+        assertEquals("Card due after reset", 1, cardAfterReset.due)
+        assertEquals("Card interval after reset", 0, cardAfterReset.ivl)
+        assertEquals("Card ease after reset", 2500, cardAfterReset.factor)
+        assertEquals("Card type after reset", Consts.CARD_TYPE_NEW, cardAfterReset.type)
     }
 }

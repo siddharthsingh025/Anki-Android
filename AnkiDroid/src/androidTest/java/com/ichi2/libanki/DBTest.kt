@@ -17,20 +17,20 @@ package com.ichi2.libanki
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.anki.tests.InstrumentedTest
-import com.ichi2.utils.KotlinCleanup
+import net.ankiweb.rsdroid.BackendFactory
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.`is`
-import org.hamcrest.Matchers.not
+import org.hamcrest.Matchers.*
+import org.junit.Assume.assumeThat
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.*
 
 @RunWith(AndroidJUnit4::class)
-@KotlinCleanup("is --> equalTo")
 class DBTest : InstrumentedTest() {
     /** mDatabase.disableWriteAheadLogging(); is called in DB init  */
     @Test
     fun writeAheadLoggingIsDisabled() {
+        assumeThat(BackendFactory.defaultLegacySchema, equalTo(true))
         // An old comment noted that explicitly disabling the WAL was no longer necessary after API 16:
         // https://github.com/ankidroid/Anki-Android/commit/6e34663ba9d09dc8b023230811c3185b72ee7eec#diff-4fdbf41d84a547a45edad66ae1f543128d1118b0e831a12916b4fac11b483688
 
@@ -39,6 +39,6 @@ class DBTest : InstrumentedTest() {
         // https://github.com/ankidroid/Anki-Android/pull/7977#issuecomment-751780273
         // https://www.sqlite.org/pragma.html#pragma_journal_mode
         val journalMode = col.db.queryString("PRAGMA journal_mode")
-        assertThat(journalMode.lowercase(Locale.ROOT), not(`is`("wal")))
+        assertThat(journalMode.lowercase(Locale.ROOT), not(equalTo("wal")))
     }
 }

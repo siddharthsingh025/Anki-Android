@@ -17,8 +17,6 @@
 package com.ichi2.libanki.sync
 
 import android.database.SQLException
-import android.text.TextUtils
-import android.util.Pair
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.R
 import com.ichi2.anki.exception.MediaSyncException
@@ -97,7 +95,7 @@ class MediaSyncer(
         mDownloadCount = 0
         while (true) {
             // Allow cancellation (note: media sync has no finish command, so just throw)
-            if (Connection.getIsCancelled()) {
+            if (Connection.isCancelled) {
                 Timber.i("Sync was cancelled")
                 throw RuntimeException(ConnectionResultType.USER_ABORTED_SYNC.toString())
             }
@@ -110,7 +108,7 @@ class MediaSyncer(
             lastUsn = data.getJSONArray(data.length() - 1).getInt(1)
             for (i in 0 until data.length()) {
                 // Allow cancellation (note: media sync has no finish command, so just throw)
-                if (Connection.getIsCancelled()) {
+                if (Connection.isCancelled) {
                     Timber.i("Sync was cancelled")
                     throw RuntimeException(ConnectionResultType.USER_ABORTED_SYNC.toString())
                 }
@@ -129,23 +127,23 @@ class MediaSyncer(
                     String.format(
                         Locale.US,
                         "check: lsum=%s rsum=%s ldirty=%d rusn=%d fname=%s",
-                        if (TextUtils.isEmpty(lsum)) "" else lsum.subSequence(0, 4),
-                        if (TextUtils.isEmpty(rsum)) "" else rsum!!.subSequence(0, 4),
+                        if (lsum.isNullOrEmpty()) "" else lsum.subSequence(0, 4),
+                        if (rsum.isNullOrEmpty()) "" else rsum.subSequence(0, 4),
                         ldirty,
                         rusn,
                         fname
                     )
                 )
-                if (!TextUtils.isEmpty(rsum)) {
+                if (!rsum.isNullOrEmpty()) {
                     // added/changed remotely
-                    if (TextUtils.isEmpty(lsum) || lsum != rsum) {
+                    if (lsum.isNullOrEmpty() || lsum != rsum) {
                         col.log("will fetch")
                         need.add(fname)
                     } else {
                         col.log("have same already")
                     }
                     col.media.markClean(listOf(fname))
-                } else if (!TextUtils.isEmpty(lsum)) {
+                } else if (!lsum.isNullOrEmpty()) {
                     // deleted remotely
                     if (ldirty == 0) {
                         col.log("delete local")
@@ -180,7 +178,11 @@ class MediaSyncer(
                 }
                 con.publishProgress(
                     String.format(
-                        AnkiDroidApp.getAppResources().getString(R.string.sync_media_changes_count), toSend
+                        AnkiDroidApp.appResources.getQuantityString(
+                            R.plurals.sync_media_changes_count_new,
+                            toSend,
+                            toSend
+                        )
                     )
                 )
                 val changes = server.uploadChanges(zip)
@@ -192,7 +194,9 @@ class MediaSyncer(
                     String.format(
                         Locale.US,
                         "processed %d, serverUsn %d, clientUsn %d",
-                        processedCnt, serverLastUsn, lastUsn
+                        processedCnt,
+                        serverLastUsn,
+                        lastUsn
                     )
                 )
                 if (serverLastUsn - processedCnt == lastUsn) {
@@ -202,7 +206,7 @@ class MediaSyncer(
                 } else {
                     col.log("concurrent update, skipping usn update")
                     // commit for markClean
-                    col.media.db.commit()
+                    col.media.db!!.commit()
                     updateConflict = true
                 }
                 toSend -= processedCnt
@@ -245,7 +249,11 @@ class MediaSyncer(
                 }
                 con.publishProgress(
                     String.format(
-                        AnkiDroidApp.getAppResources().getString(R.string.sync_media_downloaded_count), mDownloadCount
+                        AnkiDroidApp.appResources.getQuantityString(
+                            R.plurals.sync_media_downloaded_count_new,
+                            mDownloadCount,
+                            mDownloadCount
+                        )
                     )
                 )
             } catch (e: IOException) {

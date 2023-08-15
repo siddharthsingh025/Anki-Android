@@ -60,13 +60,6 @@
     <string name="initializing_tts">Initierar TTS&#8230;</string>
     <string name="tts_no_tts">Tala inte</string>
     <string name="unused_strings">\n\nOanvända filer:\n</string>
-    <string-array name="about_content">
-        <item><![CDATA[<h2>%1$s:<br/>Flash-kort för Android</h2>AnkiDroid är en flash-kort applikation som är helt kompatibel med stationära mjukvaran <a href=\"%2$s\">Anki</a>. Du kan skapa, ladda ner och lära dig material på både AnkiDroid eller Anki Desktop, och synkronisera dem lätt med AnkiWeb.]]></item>
-        <item><![CDATA[För att hjälpa oss göra AnkiDroid bättre, vänligen rapportera buggar till <a href=\"%1$s\">issue trackern</a>; nya funktionsidéer är också mycket välkomna. Hitta svar på <a href=\"%2$s\">wikin</a> eller starta en diskussion på <a href=\"%3$s\">forumet</a>.]]></item>
-        <item><![CDATA[AnkiDroid är en <a href=\"%1$s\">open source mjukvara<a/>, så alla uppmuntras till att <a href=\"%2$s\">bli en bidragsgivare</a> :-)]]></item>
-        <item><![CDATA[Icke-utvecklare kan också hjälpa. Exempelvis kan du <a href=\"%1$s\"> hjälpa till att översätta</a> AnkiDroid, uppdatera wikin, ta skärmdumpar eller blogga om AnkiDroid.]]></item>
-        <item><![CDATA[AnkiDroid är släppt under <a href=\"%1$s\">GNU-GPL v3 licensen</a> och all källkod finns tillgänglig <a href=\"%2$s\">på GitHub</a>.]]></item>
-    </string-array>
     <string name="preview_title" comment="Title of the window allowing to preview card(s)">Förhandsgranskning</string>
     <string name="reposition_card_dialog_title">Ompositionera nytt kort</string>
     <string name="reposition_card_dialog_message">Startposition:</string>
@@ -101,6 +94,7 @@
     <string name="answering_error_title">Databasfel</string>
     <string name="answering_error_message">Ett fel uppstod när data skrevs till samlingen. Detta kan bero på en korrupt databas eller otillräckligt diskutrymme.\n\nOm detta händer flera gånger, vänligen kontrollera databasen, reparera samlingen eller återställ den från en säkerhetskopia. Klicka på \'alternativ\' för det.\n\nAnnars kan detta också bero på en bug i AnkiDroid; vänligen rapportera felet så vi kan kontrollera detta.</string>
     <string name="answering_error_report">Rapportera fel</string>
+    <string name="storage_full_message">There is not enough free storage space to open AnkiDroid. Free up some space to continue. </string>
     <string name="repair_deck_dialog">Vill du verkligen försöka reparera databasen?\n\nEn kopia kommer att skapas i mappen \'%s\' innan.</string>
     <string name="intent_aedict_empty">Kategori \'default\' är tom</string>
     <string name="intent_aedict_category">För att lägga till kort till AnkiDroid, ta bort alla Notepadkategorier eller lägg till en som heter \'default\'</string>
@@ -118,18 +112,24 @@
     <string name="import_progress">• Importerar noter: %1$d%%\n• Importerar kort: %2$d%%\n• Efterbearbetning: %3$d%%</string>
     <string name="import_update_details">Uppdaterade %1$d av %2$d existerande noter.</string>
     <string name="import_update_ignored">Vissa uppdateringar ignorerades eftersom not-typen har ändrats</string>
-    <string name="import_complete_count">Kort importerade: %d</string>
-    <string name="sd_card_full_title">SD-kort fullt</string>
-    <string name="sd_card_almost_full_title">SD-kort nästan fullt</string>
-    <string name="no_space_to_downgrade_title">Inget utrymme</string>
-    <string name="no_space_to_downgrade_content">AnkiDroid behöver %s ledigt lagringsutrymme för att fortsätta. Rensa lite utrymme</string>
+    <plurals name="import_complete_message">
+        <item quantity="one">Cards imported: %2$d</item>
+        <item quantity="other">Files imported: %1$d\nTotal cards imported: %2$d</item>
+    </plurals>
+    <string name="storage_full_title">Storage full</string>
+    <string name="storage_almost_full_title">Storage almost full</string>
+    <string name="no_space_to_downgrade_title" tools:ignore="UnusedResources">Inget utrymme</string>
+    <string name="no_space_to_downgrade_content" tools:ignore="UnusedResources">AnkiDroid behöver %s ledigt lagringsutrymme för att fortsätta. Rensa lite utrymme</string>
     <string name="restore_backup_title">Återställ säkerhetskopia?</string>
     <string name="restore_backup">Din samling kommer att ersättas med en äldre kopia. Ej sparade framsteg kommer att gå förlorade.</string>
     <string name="restore_backup_choose_another">Choose another</string>
     <string name="dialog_cancel">Avbryt</string>
     <string name="dialog_ok">OK</string>
+    <string name="dialog_confirm" tools:ignore="UnusedResources">Confirm</string>
     <string name="dialog_no">Nej</string>
+    <string name="dialog_yes">Ja</string>
     <string name="dialog_continue">Fortsätt</string>
+    <string name="dialog_processing">Processing...</string>
     <string name="dialog_positive_create" comment="Create a new collection, probably erasing the previous one, may be necessary in case of error.">Skapa</string>
     <string name="dialog_positive_delete">Radera</string>
     <!-- Currently unsued, should be useful in the future -->
@@ -165,8 +165,6 @@
     <string name="tags_dialog_option_due_cards" comment="Name of cards that are already been reviewed in the past, and that should be reviewed again">Kö</string>
     <!-- Empty cards -->
     <string name="emtpy_cards_finding">Hittar tomma kort&#8230;</string>
-    <string name="confirm_cancel">Vill du avbryta?</string>
-    <string name="empty_cards_none">Inga tomma kort</string>
     <string name="empty_cards_count">Kort att ta bort: %d</string>
     <string name="empty_cards_deleted">Kort borttagna: %d</string>
     <!-- Multimedia - Edit Field Activity -->
@@ -175,9 +173,6 @@
     <string name="multimedia_editor_failed">Det gick inte att öppna Multimedia Editor</string>
     <!-- Multimedia - Audio View -->
     <string name="multimedia_editor_audio_permission_denied">Behörighet för ljudinspelning nekad</string>
-    <!-- Initial collection load -->
-    <string name="collection_load_welcome_request_permissions_title">Välkommen till AnkiDroid!</string>
-    <string name="collection_load_welcome_request_permissions_details">AnkiDroid kräver lagringstillstånd, som vi använder exklusivt för att lagra din AnkiDroid-insamling, flashcard media och säkerhetskopior. Vår kod är öppen källkod, skriven av volontärer och betrodd av miljoner.\n\nOm du har några frågor, vänligen gå till vår användarhandledning i appen eller besök vårt supportforum.\n\nTack för att du provar AnkiDroid!\n—AnkiDroids utvecklingsteam</string>
     <string name="mutimedia_editor_assertion_failed">Okänt fel uppstod vid visning av Avancerad redigerare</string>
     <!-- Database Integrity Check -->
     <string name="integrity_check_startup_title">AnkiDroid uppgraderat</string>
@@ -185,7 +180,10 @@
     <string name="integrity_check_continue_anyway">Fortsätt ändå</string>
     <string name="integrity_check_insufficient_space">Databaskontrollen använder en stor mängd tillfällig lagring.\n\nDet rekommenderas starkt att du har minst %s ledigt utrymme på din enhet innan du fortsätter.</string>
     <string name="integrity_check_insufficient_space_extra_content">\n\nDu har för närvarande %s gratis.</string>
-    <string name="integrity_check_fixed_no_home_deck">%d kort med felaktiga hemkortlekar återställdes. Se manualen för vidare information.</string>
+    <plurals name="integrity_check_fixed_no_home_deck_new">
+        <item quantity="one">%d card with incorrect home deck was recovered. Please see the manual for more information.</item>
+        <item quantity="other">%d cards with incorrect home decks were recovered. Please see the manual for more information.</item>
+    </plurals>
     <string name="video_creation_error">Kunde inte spela upp video</string>
     <!-- Card Browser -->
     <string name="card_browser_deck_change_error">Kunde inte ändra kortlek</string>
@@ -233,6 +231,7 @@
     <string name="help_item_support_develop_ankidroid">Utveckla</string>
     <string name="help_item_support_rate_ankidroid">Betygsätt</string>
     <string name="help_item_support_other_ankidroid">Övrigt</string>
+    <string name="multimedia_editor_trans_translate">Translate</string>
     <string name="help_title_community">Community</string>
     <string name="help_item_anki_forums">Anki-forum</string>
     <string name="help_item_discord">Discord</string>
@@ -249,6 +248,7 @@
         <item quantity="one">En automatisk synkronisering kan utlösas om %d sekund</item>
         <item quantity="other">En automatisk synkronisering kan utlösas om %d sekunder</item>
     </plurals>
+    <string name="metered_sync_warning">Your connection is metered. Data transfer may cost money</string>
     <string name="deck_picker_new">Antal nya kort att se idag i denna kortlek.</string>
     <string name="deck_picker_rev">Antal kort som förfaller idag i denna kortlek.</string>
     <string name="deck_picker_lrn">Antal kort i inlärning i denna kortlek.</string>
@@ -258,4 +258,19 @@
     <string name="deck_picker_counts">Öppna översiktssidan som innehåller antalet kort att se idag.</string>
     <string name="import_deck_package">Kortlekspaket (.apkg)</string>
     <string name="import_collection_package">Samlingspaket (.colpkg)</string>
+    <string name="import_csv">Text file (.txt, .csv)</string>
+    <!-- Deck selection dialog -->
+    <string name="cannot_create_subdeck_for_all_decks">You cannot create a subdeck for all decks</string>
+    <!-- scoped storage -->
+    <string name="backup_your_collection">Backup your collection</string>
+    <string name="backup_collection_message">You haven\'t backed up your collection in a while. You should do this now to prevent data loss</string>
+    <string name="button_backup">Backup</string>
+    <string name="button_disable_reminder">Disable reminder</string>
+    <string name="button_backup_later" comment="dismiss the \'Backup\' dialog for around 2 weeks">Later</string>
+    <string name="button_do_not_show_again" comment="permanently dismisses a dialog">Don\'t show again</string>
+    <string name="dismiss_backup_warning_title">Data loss warning</string>
+    <string name="dismiss_backup_warning_new_user">        Due to Android privacy changes, your data and automated backups will be deleted from your phone if the app is uninstalled
+    </string>
+    <string name="dismiss_backup_warning_upgrade">        Due to Android privacy changes, your data and automated backups will be inaccessible if the app is uninstalled
+    </string>
 </resources>

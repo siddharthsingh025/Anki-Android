@@ -17,40 +17,40 @@ package com.ichi2.anki
 
 import android.content.Intent
 import android.view.Menu
+import androidx.core.content.edit
 import androidx.test.core.app.ActivityScenario
 import com.ichi2.anki.AbstractFlashcardViewer.Companion.RESULT_DEFAULT
 import com.ichi2.anki.cardviewer.ViewerCommand
 import com.ichi2.anki.exception.ConfirmModSchemaException
+import com.ichi2.anki.preferences.PreferenceTestUtils
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.anki.reviewer.ActionButtonStatus
 import com.ichi2.libanki.Card
 import com.ichi2.libanki.Consts
 import com.ichi2.libanki.Model
 import com.ichi2.libanki.ModelManager
+import com.ichi2.libanki.utils.TimeManager
+import com.ichi2.testutils.Flaky
 import com.ichi2.testutils.MockTime
-import com.ichi2.testutils.PreferenceUtils
-import com.ichi2.utils.JSONArray
-import com.ichi2.utils.KotlinCleanup
+import com.ichi2.testutils.OS
+import com.ichi2.utils.deepClone
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.empty
-import org.hamcrest.Matchers.emptyString
-import org.hamcrest.Matchers.`is`
-import org.hamcrest.Matchers.not
+import org.hamcrest.Matchers.*
+import org.json.JSONArray
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.ParameterizedRobolectricTestRunner
 import timber.log.Timber
-import java.util.*
-import kotlin.test.junit.JUnitAsserter.assertNotNull
-import kotlin.test.junit.JUnitAsserter.assertNull
+import kotlin.test.assertFailsWith
+import kotlin.test.junit5.JUnit5Asserter.assertNotNull
 
-@KotlinCleanup("`is` -> equalTo()")
-@KotlinCleanup("redundant `val col = col`")
 @RunWith(ParameterizedRobolectricTestRunner::class)
 class ReviewerTest : RobolectricTest() {
-    @JvmField
+    @JvmField // required for Parameter
     @ParameterizedRobolectricTestRunner.Parameter
     var schedVersion = 0
+
     @Before
     override fun setUp() {
         super.setUp()
@@ -65,7 +65,7 @@ class ReviewerTest : RobolectricTest() {
     @Test
     fun verifyStartupNoCollection() {
         enableNullCollection()
-        ActivityScenario.launch(Reviewer::class.java).use { scenario -> scenario.onActivity { reviewer: Reviewer -> assertNull("Collection should have been null", reviewer.col) } }
+        ActivityScenario.launch(Reviewer::class.java).use { scenario -> scenario.onActivity { reviewer: Reviewer -> assertFailsWith<Exception> { reviewer.col } } }
     }
 
     @Test
@@ -76,14 +76,15 @@ class ReviewerTest : RobolectricTest() {
 
     @Test
     @RunInBackground
+    @Flaky(os = OS.WINDOWS, "startUp: BackendCollectionAlreadyOpenException")
     fun exitCommandWorksAfterControlsAreBlocked() {
         ensureCollectionLoadIsSynchronous()
-        ActivityScenario.launch(Reviewer::class.java).use { scenario ->
+        ActivityScenario.launchActivityForResult(Reviewer::class.java).use { scenario ->
             scenario.onActivity { reviewer: Reviewer ->
                 reviewer.blockControls(true)
-                reviewer.executeCommand(ViewerCommand.COMMAND_EXIT)
+                reviewer.executeCommand(ViewerCommand.EXIT)
             }
-            assertThat(scenario.result.resultCode, `is`(RESULT_DEFAULT))
+            assertThat(scenario.result.resultCode, equalTo(RESULT_DEFAULT))
         }
     }
 
@@ -112,7 +113,7 @@ class ReviewerTest : RobolectricTest() {
 
         // The answer needs to be displayed to be able to get the time.
         displayAnswer(reviewer)
-        assertThat("4 buttons should be displayed", reviewer.answerButtonCount, `is`(4))
+        assertThat("4 buttons should be displayed", reviewer.answerButtonCount, equalTo(4))
 
         val nextTime = javaScriptFunction.ankiGetNextTime4()
         assertThat(nextTime, not(emptyString()))
@@ -123,7 +124,7 @@ class ReviewerTest : RobolectricTest() {
         displayAnswer(reviewer)
 
         if (schedVersion == 1) {
-            assertThat("The 4th button should not be visible", reviewer.answerButtonCount, `is`(3))
+            assertThat("The 4th button should not be visible", reviewer.answerButtonCount, equalTo(3))
             val learnTime = javaScriptFunction.ankiGetNextTime4()
             assertThat("If the 4th button is not visible, there should be no time4 in JS", learnTime, emptyString())
         }
@@ -156,9 +157,8 @@ class ReviewerTest : RobolectricTest() {
     @Test
     @Synchronized
     @Throws(ConfirmModSchemaException::class)
-    fun testMultipleCards() {
+    fun testMultipleCards() = runTest {
         addNoteWithThreeCards()
-        val col = col
         val nw = col.decks.confForDid(1).getJSONObject("new")
         val time = collectionTime
         nw.put("delays", JSONArray(intArrayOf(1, 10, 60, 120)))
@@ -186,71 +186,68 @@ class ReviewerTest : RobolectricTest() {
     }
 
     @Test
-    @KotlinCleanup("make cards array non-null")
-    fun testLrnQueueAfterUndo() {
-        val col = col
+    fun testLrnQueueAfterUndo() = runTest {
         val nw = col.decks.confForDid(1).getJSONObject("new")
-        val time = col.time as MockTime
+        val time = TimeManager.time as MockTime
         nw.put("delays", JSONArray(intArrayOf(1, 10, 60, 120)))
 
-        val cards = arrayOfNulls<Card>(4)
-        cards[0] = addRevNoteUsingBasicModelDueToday("1", "bar").firstCard()
-        cards[1] = addNoteUsingBasicModel("2", "bar").firstCard()
-        cards[2] = addNoteUsingBasicModel("3", "bar").firstCard()
-
+        val cards = arrayOf(
+            addRevNoteUsingBasicModelDueToday("1", "bar").firstCard(),
+            addNoteUsingBasicModel("2", "bar").firstCard(),
+            addNoteUsingBasicModel("3", "bar").firstCard()
+        )
         waitForAsyncTasksToComplete()
 
         val reviewer = startReviewer()
 
         waitForAsyncTasksToComplete()
 
-        equalFirstField(cards[0]!!, reviewer.mCurrentCard!!)
+        equalFirstField(cards[0], reviewer.currentCard!!)
         reviewer.answerCard(Consts.BUTTON_ONE)
         waitForAsyncTasksToComplete()
 
-        equalFirstField(cards[1]!!, reviewer.mCurrentCard!!)
+        equalFirstField(cards[1], reviewer.currentCard!!)
         reviewer.answerCard(Consts.BUTTON_ONE)
         waitForAsyncTasksToComplete()
 
         undo(reviewer)
         waitForAsyncTasksToComplete()
 
-        equalFirstField(cards[1]!!, reviewer.mCurrentCard!!)
-        reviewer.answerCard(getCol().sched.goodNewButton)
+        equalFirstField(cards[1], reviewer.currentCard!!)
+        reviewer.answerCard(col.sched.goodNewButton)
         waitForAsyncTasksToComplete()
 
-        equalFirstField(cards[2]!!, reviewer.mCurrentCard!!)
+        equalFirstField(cards[2], reviewer.currentCard!!)
         time.addM(2)
-        reviewer.answerCard(getCol().sched.goodNewButton)
+        reviewer.answerCard(col.sched.goodNewButton)
         advanceRobolectricLooperWithSleep()
-        equalFirstField(cards[0]!!, reviewer.mCurrentCard!!) // This failed in #6898 because this card was not in the queue
+        equalFirstField(cards[0], reviewer.currentCard!!) // This failed in #6898 because this card was not in the queue
     }
 
     @Test
+    @Flaky(os = OS.WINDOWS, "startReviewer: NullPointerException - baseDeckName")
     fun baseDeckName() {
-        val col = col
         val models = col.models
 
         val decks = col.decks
         val didAb = addDeck("A::B")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didAb)
         addNoteUsingBasicModel("foo", "bar")
         val didA = addDeck("A")
         decks.select(didA)
         val reviewer = startReviewer()
         waitForAsyncTasksToComplete()
-        assertThat(reviewer.supportActionBar!!.title, `is`("B"))
+        assertThat(reviewer.supportActionBar!!.title, equalTo("B"))
     }
 
     @Test
     fun jsAnkiGetDeckName() {
-        val col = col
         val models = col.models
         val decks = col.decks
 
         val didAb = addDeck("A::B")
-        val basic = models.byName(AnkiDroidApp.getAppResources().getString(R.string.basic_model_name))
+        val basic = models.byName(AnkiDroidApp.appResources.getString(R.string.basic_model_name))
         basic!!.put("did", didAb)
         addNoteUsingBasicModel("foo", "bar")
 
@@ -261,58 +258,56 @@ class ReviewerTest : RobolectricTest() {
         val javaScriptFunction = reviewer.javaScriptFunction()
 
         waitForAsyncTasksToComplete()
-        assertThat(javaScriptFunction.ankiGetDeckName(), `is`("B"))
+        assertThat(javaScriptFunction.ankiGetDeckName(), equalTo("B"))
     }
 
     private fun toggleWhiteboard(reviewer: ReviewerForMenuItems) {
         reviewer.toggleWhiteboard()
 
-        assumeTrue("Whiteboard should now be enabled", reviewer.mPrefWhiteboard)
+        assumeTrue("Whiteboard should now be enabled", reviewer.prefWhiteboard)
 
         advanceRobolectricLooperWithSleep()
     }
 
-    @KotlinCleanup(".edit {}")
-    @KotlinCleanup(".toString()")
     private fun disableAllReviewerAppBarButtons() {
-        val keys = PreferenceUtils.getAllCustomButtonKeys(targetContext)
+        val keys = PreferenceTestUtils.getAllCustomButtonKeys(targetContext)
 
-        val preferences = AnkiDroidApp.getSharedPrefs(targetContext)
+        val preferences = targetContext.sharedPrefs()
 
-        val e = preferences.edit()
-        for (k in keys) {
-            e.putString(k, Integer.toString(ActionButtonStatus.MENU_DISABLED))
+        preferences.edit {
+            for (k in keys) {
+                putString(k, ActionButtonStatus.MENU_DISABLED.toString())
+            }
         }
-        e.apply()
     }
 
-    private fun assertCurrentOrdIsNot(r: Reviewer, i: Int) {
+    private fun assertCurrentOrdIsNot(r: Reviewer, @Suppress("SameParameterValue") i: Int) {
         waitForAsyncTasksToComplete()
-        val ord = r.mCurrentCard!!.ord
+        val ord = r.currentCard!!.ord
 
-        assertThat("Unexpected card ord", ord + 1, not(`is`(i)))
+        assertThat("Unexpected card ord", ord + 1, not(equalTo(i)))
     }
 
-    private fun undo(reviewer: Reviewer) {
+    private suspend fun undo(reviewer: Reviewer) {
         reviewer.undo()
-        waitForAsyncTasksToComplete()
     }
 
-    @KotlinCleanup("Use mutableListOf")
+    @Suppress("SameParameterValue")
     private fun assertCounts(r: Reviewer, newCount: Int, stepCount: Int, revCount: Int) {
-
-        val countList: MutableList<String?> = ArrayList()
         val jsApi = r.javaScriptFunction()
-        countList.add(jsApi.ankiGetNewCardCount())
-        countList.add(jsApi.ankiGetLrnCardCount())
-        countList.add(jsApi.ankiGetRevCardCount())
+        val countList = listOf(
+            jsApi.ankiGetNewCardCount(),
+            jsApi.ankiGetLrnCardCount(),
+            jsApi.ankiGetRevCardCount()
+        )
 
-        val expected: MutableList<Int> = ArrayList()
-        expected.add(newCount)
-        expected.add(stepCount)
-        expected.add(revCount)
+        val expected = listOf(
+            newCount,
+            stepCount,
+            revCount
+        )
 
-        assertThat(countList.toString(), `is`(expected.toString())) // We use toString as hamcrest does not print the whole array and stops at [0].
+        assertThat(countList.toString(), equalTo(expected.toString())) // We use toString as hamcrest does not print the whole array and stops at [0].
     }
 
     private fun answerCardOrdinalAsGood(r: Reviewer, i: Int) {
@@ -325,9 +320,9 @@ class ReviewerTest : RobolectricTest() {
 
     private fun assertCurrentOrdIs(r: Reviewer, i: Int) {
         waitForAsyncTasksToComplete()
-        val ord = r.mCurrentCard!!.ord
+        val ord = r.currentCard!!.ord
 
-        assertThat("Unexpected card ord", ord + 1, `is`(i))
+        assertThat("Unexpected card ord", ord + 1, equalTo(i))
     }
 
     @Throws(ConfirmModSchemaException::class)
@@ -338,26 +333,27 @@ class ReviewerTest : RobolectricTest() {
         models.add(m)
         m = models.byName("Three")
         models.flush()
-        cloneTemplate(models, m)
-        cloneTemplate(models, m)
+        cloneTemplate(models, m, "1")
+        cloneTemplate(models, m, "2")
 
         val newNote = col.newNote()
         newNote.setField(0, "Hello")
-        assertThat(newNote.model()["name"], `is`("Three"))
+        assertThat(newNote.model()["name"], equalTo("Three"))
 
-        assertThat(col.addNote(newNote), `is`(3))
+        assertThat(col.addNote(newNote), equalTo(3))
     }
 
     @Throws(ConfirmModSchemaException::class)
-    private fun cloneTemplate(models: ModelManager, m: Model?) {
+    private fun cloneTemplate(models: ModelManager, m: Model?, extra: String) {
         val tmpls = m!!.getJSONArray("tmpls")
         val defaultTemplate = tmpls.getJSONObject(0)
 
         val newTemplate = defaultTemplate.deepClone()
         newTemplate.put("ord", tmpls.length())
 
-        val card_name = targetContext.getString(R.string.card_n_name, tmpls.length() + 1)
-        newTemplate.put("name", card_name)
+        val cardName = targetContext.getString(R.string.card_n_name, tmpls.length() + 1)
+        newTemplate.put("name", cardName)
+        newTemplate.put("qfmt", newTemplate.getString("qfmt") + extra)
 
         models.addTemplate(m, newTemplate)
     }
@@ -414,22 +410,19 @@ class ReviewerTest : RobolectricTest() {
     }
 
     companion object {
-        @JvmStatic
+        @JvmStatic // required for initParameters
         @ParameterizedRobolectricTestRunner.Parameters(name = "SchedV{0}")
-        @KotlinCleanup("Arrays.asList -> listOf")
         fun initParameters(): Collection<Array<Any>> {
             // This does one run with schedVersion injected as 1, and one run as 2
-            return Arrays.asList(arrayOf(1), arrayOf(2))
+            return listOf(arrayOf(1), arrayOf(2))
         }
 
-        fun startReviewer(testClass: RobolectricTest?): Reviewer {
+        fun startReviewer(testClass: RobolectricTest): Reviewer {
             return startReviewer(testClass, Reviewer::class.java)
         }
 
-        @JvmStatic
-        @KotlinCleanup("make params non-null")
-        fun <T : Reviewer?> startReviewer(testClass: RobolectricTest?, clazz: Class<T>?): T {
-            val reviewer = startActivityNormallyOpenCollectionWithIntent(testClass!!, clazz, Intent())
+        fun <T : Reviewer?> startReviewer(testClass: RobolectricTest, clazz: Class<T>): T {
+            val reviewer = startActivityNormallyOpenCollectionWithIntent(testClass, clazz, Intent())
             waitForAsyncTasksToComplete()
             return reviewer
         }

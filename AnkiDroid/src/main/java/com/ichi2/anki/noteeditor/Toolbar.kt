@@ -15,6 +15,7 @@
  */
 package com.ichi2.anki.noteeditor
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
@@ -32,14 +33,21 @@ import android.widget.LinearLayout
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.annotation.IdRes
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.widget.AppCompatImageButton
+import androidx.core.view.children
 import androidx.vectordrawable.graphics.drawable.VectorDrawableCompat
-import com.afollestad.materialdialogs.MaterialDialog
 import com.ichi2.anki.AnkiDroidApp
+import com.ichi2.anki.NoteEditor
 import com.ichi2.anki.R
+import com.ichi2.anki.UIUtils.convertDpToPixel
+import com.ichi2.anki.preferences.sharedPrefs
+import com.ichi2.compat.CompatHelper
 import com.ichi2.libanki.Utils
 import com.ichi2.utils.ViewGroupUtils
 import com.ichi2.utils.ViewGroupUtils.getAllChildrenRecursive
+import com.ichi2.utils.show
+import com.ichi2.utils.title
 import timber.log.Timber
 import java.util.*
 import kotlin.math.ceil
@@ -61,18 +69,11 @@ class Toolbar : FrameLayout {
     var formatListener: TextFormatListener? = null
     private val mToolbar: LinearLayout
     private val mToolbarLayout: LinearLayout
+
     /** A list of buttons, typically user-defined which modify text + selection */
     private val mCustomButtons: MutableList<View> = ArrayList()
     private val mRows: MutableList<LinearLayout> = ArrayList()
 
-    /**
-     * TODO HACK until API 21 - can be removed once tested.
-     *
-     * inside NoteEditor: use [insertItem] instead of accessing this
-     * and remove [R.id.note_editor_toolbar_button_cloze] from [R.layout.note_editor_toolbar]
-     */
-    var clozeIcon: View? = null
-        private set
     private var mStringPaint: Paint? = null
 
     constructor(context: Context) : super(context)
@@ -83,13 +84,12 @@ class Toolbar : FrameLayout {
     init {
         LayoutInflater.from(context).inflate(R.layout.note_editor_toolbar, this, true)
         mStringPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            textSize = dpToPixels(24).toFloat()
+            textSize = convertDpToPixel(24F, context)
             color = Color.BLACK
             textAlign = Paint.Align.CENTER
         }
         mToolbar = findViewById(R.id.editor_toolbar_internal)
         mToolbarLayout = findViewById(R.id.toolbar_layout)
-        clozeIcon = findViewById(R.id.note_editor_toolbar_button_cloze)
         setupDefaultButtons()
     }
 
@@ -100,12 +100,17 @@ class Toolbar : FrameLayout {
             findViewById<View>(id).setOnClickListener { onFormat(TextWrapper(prefix, suffix)) }
 
         setupButtonWrappingText(R.id.note_editor_toolbar_button_bold, "<b>", "</b>")
-        setupButtonWrappingText(R.id.note_editor_toolbar_button_italic, "<em>", "</em>")
+        setupButtonWrappingText(R.id.note_editor_toolbar_button_italic, "<i>", "</i>")
         setupButtonWrappingText(R.id.note_editor_toolbar_button_underline, "<u>", "</u>")
         setupButtonWrappingText(R.id.note_editor_toolbar_button_insert_mathjax, "\\(", "\\)")
         setupButtonWrappingText(R.id.note_editor_toolbar_button_horizontal_rule, "<hr>", "")
         findViewById<View>(R.id.note_editor_toolbar_button_font_size).setOnClickListener { displayFontSizeDialog() }
         findViewById<View>(R.id.note_editor_toolbar_button_title).setOnClickListener { displayInsertHeadingDialog() }
+
+        val parentLayout = findViewById<LinearLayout>(R.id.editor_toolbar_internal)
+        parentLayout.children.forEach { child ->
+            CompatHelper.compat.setTooltipTextByContentDescription(child)
+        }
     }
 
     /**
@@ -138,14 +143,6 @@ class Toolbar : FrameLayout {
         return super.onKeyUp(keyCode, event)
     }
 
-    private fun dpToPixels(value: Int): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            value.toFloat(),
-            resources.displayMetrics
-        ).toInt()
-    }
-
     fun insertItem(@IdRes id: Int, @DrawableRes drawable: Int, runnable: Runnable): AppCompatImageButton {
         // we use the light theme here to ensure the tint is black on both
         // A null theme can be passed after colorControlNormal is defined (API 25)
@@ -162,7 +159,7 @@ class Toolbar : FrameLayout {
         val context = context
         val button = AppCompatImageButton(context)
         button.id = id
-        button.background = drawable
+        button.setImageDrawable(drawable)
 
         /*
             Style didn't work
@@ -172,15 +169,20 @@ class Toolbar : FrameLayout {
         */
 
         // apply style
-        val margin = dpToPixels(8)
-        val params = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        val background = TypedValue()
+        context.theme.resolveAttribute(android.R.attr.selectableItemBackground, background, true)
+        button.setBackgroundResource(background.resourceId)
+        // Use layout size from R.style.note_editor_toolbar_button
+        val buttonSize = convertDpToPixel(44F, context).toInt()
+        val params = LinearLayout.LayoutParams(buttonSize, buttonSize)
         params.gravity = Gravity.CENTER
-        params.setMargins(margin, margin / 2, margin, margin / 2)
         button.layoutParams = params
         val twoDp = ceil((2 / context.resources.displayMetrics.density).toDouble()).toInt()
         button.setPadding(twoDp, twoDp, twoDp, twoDp)
         // end apply style
-        if (shouldScrollToolbar()) {
+        val shouldScroll = AnkiDroidApp.instance.sharedPrefs()
+            .getBoolean(NoteEditor.PREF_NOTE_EDITOR_SCROLL_TOOLBAR, true)
+        if (shouldScroll) {
             mToolbar.addView(button, mToolbar.childCount)
         } else {
             addViewToToolbar(button)
@@ -190,10 +192,11 @@ class Toolbar : FrameLayout {
 
         // Hack - items are truncated from the scrollview
         val v = findViewById<View>(R.id.toolbar_layout)
-        val expectedWidth = getVisibleItemCount(mToolbar) * dpToPixels(48)
+        val expectedWidth = getVisibleItemCount(mToolbar) * convertDpToPixel(48F, context)
         val width = screenWidth
         val p = LayoutParams(v.layoutParams)
-        p.gravity = Gravity.CENTER_VERTICAL or if (expectedWidth > width) Gravity.START else Gravity.CENTER_HORIZONTAL
+        p.gravity =
+            Gravity.CENTER_VERTICAL or if (expectedWidth > width) Gravity.START else Gravity.CENTER_HORIZONTAL
         v.layoutParams = p
         return button
     }
@@ -221,35 +224,37 @@ class Toolbar : FrameLayout {
      *
      * @see [R.array.html_size_codes]
      */
+    @SuppressLint("CheckResult")
     private fun displayFontSizeDialog() {
         val results = resources.getStringArray(R.array.html_size_codes)
 
         // Might be better to add this as a fragment - let's see.
-        MaterialDialog.Builder(context)
-            .items(R.array.html_size_code_labels)
-            .itemsCallback { _: MaterialDialog?, _: View?, pos: Int, _: CharSequence? ->
+        AlertDialog.Builder(context).show {
+            setItems(R.array.html_size_code_labels) { _, index ->
                 val formatter = TextWrapper(
-                    prefix = "<span style=\"font-size:${results[pos]}\">",
+                    prefix = "<span style=\"font-size:${results[index]}\">",
                     suffix = "</span>"
                 )
                 onFormat(formatter)
             }
-            .title(R.string.menu_font_size)
-            .show()
+            title(R.string.menu_font_size)
+        }
     }
 
     /**
      * Displays a dialog which allows `<h1>` to `<h6>` to be inserted
      */
+    @SuppressLint("CheckResult")
     private fun displayInsertHeadingDialog() {
-        MaterialDialog.Builder(context)
-            .items("h1", "h2", "h3", "h4", "h5")
-            .itemsCallback { _: MaterialDialog?, _: View?, _: Int, string: CharSequence ->
-                val formatter = TextWrapper(prefix = "<$string>", suffix = "</$string>")
+        val headingList = arrayOf("h1", "h2", "h3", "h4", "h5")
+        AlertDialog.Builder(context).show {
+            setItems(headingList) { _, index ->
+                val charSequence = headingList[index]
+                val formatter = TextWrapper(prefix = "<$charSequence>", suffix = "</$charSequence>")
                 onFormat(formatter)
             }
-            .title(R.string.insert_heading)
-            .show()
+            title(R.string.insert_heading)
+        }
     }
 
     /** Given a string [text], generates a [Drawable] which can be used as a button icon */
@@ -267,7 +272,7 @@ class Toolbar : FrameLayout {
         ViewGroupUtils.getAllChildren(layout).count { it.visibility == VISIBLE }
 
     private fun addViewToToolbar(button: AppCompatImageButton) {
-        val expectedWidth = getVisibleItemCount(mToolbar) * dpToPixels(48)
+        val expectedWidth = getVisibleItemCount(mToolbar) * convertDpToPixel(48F, context)
         val width = screenWidth
         if (expectedWidth <= width) {
             mToolbar.addView(button, mToolbar.childCount)
@@ -276,7 +281,7 @@ class Toolbar : FrameLayout {
         var spaceLeft = false
         if (mRows.isNotEmpty()) {
             val row = mRows.last()
-            val expectedRowWidth = getVisibleItemCount(row) * dpToPixels(48)
+            val expectedRowWidth = getVisibleItemCount(row) * convertDpToPixel(48F, context)
             if (expectedRowWidth <= width) {
                 row.addView(button, row.childCount)
                 spaceLeft = true
@@ -370,15 +375,8 @@ class Toolbar : FrameLayout {
      * If not, at the end of the string
      */
     data class StringFormat(
-        @JvmField var result: String = "",
-        @JvmField var selectionStart: Int = 0,
-        @JvmField var selectionEnd: Int = 0
+        var result: String = "",
+        var selectionStart: Int = 0,
+        var selectionEnd: Int = 0
     )
-
-    companion object {
-        /** @return true: toolbar should scroll horizontally. false: toolbar should be stacked vertically */
-        fun shouldScrollToolbar(): Boolean {
-            return AnkiDroidApp.getSharedPrefs(AnkiDroidApp.getInstance()).getBoolean("noteEditorScrollToolbar", true)
-        }
-    }
 }

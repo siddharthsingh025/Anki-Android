@@ -19,14 +19,13 @@ import android.app.Activity
 import android.os.Looper.getMainLooper
 import com.canhub.cropper.CropImageActivity
 import com.ichi2.anki.multimediacard.activity.LoadPronunciationActivity
-import com.ichi2.anki.multimediacard.activity.TranslationActivity
+import com.ichi2.anki.preferences.Preferences
 import com.ichi2.testutils.ActivityList
 import com.ichi2.testutils.ActivityList.ActivityLaunchParam
 import com.ichi2.testutils.EmptyApplication
 import com.ichi2.utils.ExceptionUtil.getFullStackTrace
-import com.ichi2.utils.KotlinCleanup
 import org.hamcrest.MatcherAssert.assertThat
-import org.hamcrest.Matchers.`is`
+import org.hamcrest.Matchers.equalTo
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Test
@@ -39,18 +38,16 @@ import java.util.stream.Collectors
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @Config(application = EmptyApplication::class) // no point in Application init if we don't use it
-@KotlinCleanup("IDE lint")
-@KotlinCleanup("See if we can combine Parameter and JvmField")
-@KotlinCleanup("`is` -> equalTo")
 class ActivityStartupUnderBackupTest : RobolectricTest() {
     @ParameterizedRobolectricTestRunner.Parameter
-    @JvmField
+    @JvmField // required for Parameter
     var mLauncher: ActivityLaunchParam? = null
 
     // Only used for display, but needs to be defined
     @ParameterizedRobolectricTestRunner.Parameter(1)
-    @JvmField
+    @JvmField // required for Parameter
     var mActivityName: String? = null
+
     @Before
     fun before() {
         notYetHandled(CropImageActivity::class.java.simpleName, "cannot implemented - activity from canhub.cropper")
@@ -58,8 +55,7 @@ class ActivityStartupUnderBackupTest : RobolectricTest() {
         notYetHandled(VideoPlayer::class.java.simpleName, "Not working (or implemented) - inherits from Activity")
         notYetHandled(LoadPronunciationActivity::class.java.simpleName, "Not working (or implemented) - inherits from Activity")
         notYetHandled(Preferences::class.java.simpleName, "Not working (or implemented) - inherits from AppCompatPreferenceActivity")
-        notYetHandled(TranslationActivity::class.java.simpleName, "Not working (or implemented) - inherits from FragmentActivity")
-        notYetHandled(DeckOptions::class.java.simpleName, "Not working (or implemented) - inherits from AppCompatPreferenceActivity")
+        notYetHandled(DeckOptionsActivity::class.java.simpleName, "Not working (or implemented) - inherits from AppCompatPreferenceActivity")
         notYetHandled(FilteredDeckOptions::class.java.simpleName, "Not working (or implemented) - inherits from AppCompatPreferenceActivity")
     }
 
@@ -78,8 +74,7 @@ class ActivityStartupUnderBackupTest : RobolectricTest() {
     @Test
     fun activityHandlesRestoreBackup() {
         AnkiDroidApp.simulateRestoreFromBackup()
-        val controller: ActivityController<out Activity?>
-        controller = try {
+        val controller: ActivityController<out Activity?> = try {
             mLauncher!!.build(targetContext).create()
         } catch (npe: Exception) {
             val stackTrace = getFullStackTrace(npe)
@@ -98,20 +93,20 @@ $stackTrace"""
         // Note: Robolectric differs from actual Android (process is not killed).
         // But we get the main idea: onCreate() doesn't throw an exception and is handled.
         // and onDestroy() is also called in the real implementation on my phone.
-        assertThat("If a backup was taking place, the activity should be finishing", controller.get()!!.isFinishing, `is`(true))
+        assertThat("If a backup was taking place, the activity should be finishing", controller.get()!!.isFinishing, equalTo(true))
         controller.destroy()
-        assertThat("If a backup was taking place, the activity should be destroyed successfully", controller.get()!!.isDestroyed, `is`(true))
+        assertThat("If a backup was taking place, the activity should be destroyed successfully", controller.get()!!.isDestroyed, equalTo(true))
     }
 
-    protected fun notYetHandled(activityName: String, reason: String) {
+    private fun notYetHandled(activityName: String, reason: String) {
         if (mLauncher!!.simpleName == activityName) {
-            assumeThat("$activityName $reason", true, `is`(false))
+            assumeThat("$activityName $reason", true, equalTo(false))
         }
     }
 
     companion object {
         @ParameterizedRobolectricTestRunner.Parameters(name = "{1}")
-        @JvmStatic
+        @JvmStatic // required for initParameters
         fun initParameters(): Collection<Array<Any>> {
             return ActivityList.allActivitiesAndIntents().stream().map { x: ActivityLaunchParam -> arrayOf(x, x.simpleName) }.collect(Collectors.toList())
         }

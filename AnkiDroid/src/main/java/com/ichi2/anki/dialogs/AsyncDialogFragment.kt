@@ -16,10 +16,8 @@
 package com.ichi2.anki.dialogs
 
 import android.content.res.Resources
-import android.os.Message
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.analytics.AnalyticsDialogFragment
-import com.ichi2.utils.KotlinCleanup
 import timber.log.Timber
 
 abstract class AsyncDialogFragment : AnalyticsDialogFragment() {
@@ -27,16 +25,13 @@ abstract class AsyncDialogFragment : AnalyticsDialogFragment() {
        can't be shown due to the host activity being in stopped state.
        This can happen when the DialogFragment is shown from
        the onPostExecute() method of an AsyncTask */
-    @KotlinCleanup("convert these back to properties")
-    abstract fun getNotificationMessage(): String?
-    abstract fun getNotificationTitle(): String?
-    open fun getDialogHandlerMessage(): Message? {
-        return null
-    }
+    abstract val notificationMessage: String?
+    abstract val notificationTitle: String
+    open val dialogHandlerMessage: DialogHandlerMessage? get() = null
 
     protected fun res(): Resources {
         return try {
-            AnkiDroidApp.getAppResources()
+            AnkiDroidApp.appResources
         } catch (e: Exception) {
             Timber.w(e, "AnkiDroidApp.getAppResources failure. Returning Fragment resources as fallback.")
             resources

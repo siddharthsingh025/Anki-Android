@@ -16,27 +16,22 @@
 package com.ichi2.utils
 
 import android.os.Bundle
+import com.ichi2.utils.BundleUtils.getNullableLong
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.mockito.Mockito.*
 import org.mockito.kotlin.whenever
-import java.util.*
+import kotlin.random.Random
 import kotlin.test.assertNull
 
 class BundleUtilsTest {
-    @Test
-    fun test_GetNullableLong_NullBundle_ReturnsNull() {
-        val value = BundleUtils.getNullableLong(null, KEY)
-        assertNull(value)
-    }
-
     @Test
     fun test_GetNullableLong_NotFound_ReturnsNull() {
         val b = mock(Bundle::class.java)
 
         whenever(b.containsKey(anyString())).thenReturn(false)
 
-        val value = BundleUtils.getNullableLong(b, KEY)
+        val value = b.getNullableLong(KEY)
 
         verify(b, times(0)).getLong(eq(KEY))
 
@@ -44,16 +39,15 @@ class BundleUtilsTest {
     }
 
     @Test
-    @KotlinCleanup("Use Kotlin's Random instead of Java's")
     fun test_GetNullableLong_Found_ReturnIt() {
-        val expected = Random().nextLong()
+        val expected = Random.Default.nextLong()
         val b = mock(Bundle::class.java)
 
         whenever(b.containsKey(anyString())).thenReturn(true)
 
         whenever(b.getLong(anyString())).thenReturn(expected)
 
-        val value = BundleUtils.getNullableLong(b, KEY)
+        val value = b.getNullableLong(KEY)
 
         verify(b).getLong(eq(KEY))
 

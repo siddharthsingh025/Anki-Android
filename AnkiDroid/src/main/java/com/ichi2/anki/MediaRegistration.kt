@@ -50,7 +50,7 @@ class MediaRegistration(private val context: Context) {
         val fd = openInputStreamWithURI(uri)
         val fileNameAndExtension = getFileNameAndExtension(filename)
         fileName = if (checkFilename(fileNameAndExtension!!)) {
-            String.format("%s-name", fileNameAndExtension.key)
+            "${fileNameAndExtension.key}-name"
         } else {
             fileNameAndExtension.key
         }
@@ -83,8 +83,8 @@ class MediaRegistration(private val context: Context) {
             return null
         }
         val field = ImageField()
-        field.setHasTemporaryMedia(true)
-        field.imagePath = tempFilePath
+        field.hasTemporaryMedia = true
+        field.extraImagePathRef = tempFilePath
         return field.formattedValue
     }
 
@@ -163,7 +163,7 @@ class MediaRegistration(private val context: Context) {
         Timber.i("Adding media to collection: %s", imagePath)
         val f = File(imagePath)
         return try {
-            CollectionHelper.getInstance().getCol(context).media.addFile(f)
+            CollectionHelper.instance.getCol(context)!!.media.addFile(f)
             true
         } catch (e: IOException) {
             Timber.w(e, "Failed to add file")

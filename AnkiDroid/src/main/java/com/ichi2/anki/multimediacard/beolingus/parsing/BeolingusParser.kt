@@ -21,7 +21,6 @@ package com.ichi2.anki.multimediacard.beolingus.parsing
 import com.ichi2.utils.KotlinCleanup
 import org.intellij.lang.annotations.Language
 import timber.log.Timber
-import java.util.*
 import java.util.regex.Pattern
 
 /**
@@ -38,17 +37,14 @@ object BeolingusParser {
      * @param html HTML page from beolingus, with translation of the word we search
      * @return `"no"` or the pronunciation URL
      */
-    @JvmStatic
     @KotlinCleanup("AFTER fixing @KotlinCleanup in LoadPronunciationActivity see if wordToSearchFor can be made non null")
     fun getPronunciationAddressFromTranslation(@Language("HTML") html: String, wordToSearchFor: String?): String {
         val m = PRONUNCIATION_PATTERN.matcher(html)
         while (m.find()) {
             // Perform .contains() due to #5376 (a "%20{noun}" suffix).
-            // Perform .toLowerCase() due to #5810 ("hello" should match "Hello").
             // See #5810 for discussion on Locale complexities. Currently unhandled.
-            @Suppress("DEPRECATION")
             @KotlinCleanup("improve null handling of m.group() possibly returning null")
-            if (m.group(2)!!.toLowerCase(Locale.ROOT).contains(wordToSearchFor!!.toLowerCase(Locale.ROOT))) {
+            if (m.group(2)!!.contains(wordToSearchFor!!, ignoreCase = true)) {
                 Timber.d("pronunciation URL is https://dict.tu-chemnitz.de%s", m.group(1))
                 return "https://dict.tu-chemnitz.de" + m.group(1)
             }
@@ -60,7 +56,6 @@ object BeolingusParser {
     /**
      * @return `"no"`, or the http address of the mp3 file
      */
-    @JvmStatic
     fun getMp3AddressFromPronunciation(@Language("HTML") pronunciationPageHtml: String): String {
         // Only log the page if you need to work with the regex
         // Timber.d("pronunciationPageHtml is %s", pronunciationPageHtml);

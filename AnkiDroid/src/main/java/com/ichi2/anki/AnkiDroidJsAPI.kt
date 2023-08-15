@@ -21,28 +21,23 @@ package com.ichi2.anki
 
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
 import android.net.Uri
-import android.text.TextUtils
-import android.view.View
 import android.webkit.JavascriptInterface
-import android.webkit.WebView
-import android.widget.TextView
 import com.github.zafarkhaja.semver.Version
 import com.google.android.material.snackbar.Snackbar
 import com.ichi2.anim.ActivityTransitionAnimation
-import com.ichi2.anki.UIUtils.showThemedToast
-import com.ichi2.anki.servicelayer.SearchService
-import com.ichi2.async.CollectionTask.SearchCards
-import com.ichi2.async.TaskListener
-import com.ichi2.async.TaskManager
+import com.ichi2.anki.snackbar.setMaxLines
+import com.ichi2.anki.snackbar.showSnackbar
 import com.ichi2.libanki.Card
+import com.ichi2.libanki.CardId
 import com.ichi2.libanki.Consts.CARD_QUEUE
 import com.ichi2.libanki.Consts.CARD_TYPE
 import com.ichi2.libanki.Decks
 import com.ichi2.libanki.SortOrder
-import com.ichi2.utils.JSONException
-import com.ichi2.utils.JSONObject
+import com.ichi2.utils.NetworkUtils
+import kotlinx.coroutines.runBlocking
+import org.json.JSONException
+import org.json.JSONObject
 import timber.log.Timber
 
 open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
@@ -106,20 +101,14 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
      */
     fun showDeveloperContact(errorCode: Int) {
         val errorMsg: String = context.getString(R.string.anki_js_error_code, errorCode)
-        val parentLayout: View = activity.findViewById(android.R.id.content)
         val snackbarMsg: String = context.getString(R.string.api_version_developer_contact, cardSuppliedDeveloperContact, errorMsg)
-        val snackbar: Snackbar? = UIUtils.showSnackbar(
-            activity,
-            snackbarMsg,
-            false,
-            R.string.reviewer_invalid_api_version_visit_documentation,
-            { activity.openUrl(Uri.parse("https://github.com/ankidroid/Anki-Android/wiki")) },
-            parentLayout,
-            null
-        )
-        val snackbarTextView = snackbar!!.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)
-        snackbarTextView.maxLines = 3
-        snackbar.show()
+
+        activity.showSnackbar(snackbarMsg, Snackbar.LENGTH_INDEFINITE) {
+            setMaxLines(3)
+            setAction(R.string.reviewer_invalid_api_version_visit_documentation) {
+                activity.openUrl(Uri.parse("https://github.com/ankidroid/Anki-Android/wiki"))
+            }
+        }
     }
 
     /**
@@ -127,7 +116,7 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
      */
     private fun requireApiVersion(apiVer: String, apiDevContact: String): Boolean {
         try {
-            if (TextUtils.isEmpty(apiDevContact)) {
+            if (apiDevContact.isEmpty()) {
                 return false
             }
             val versionCurrent = Version.valueOf(AnkiDroidJsAPIConstants.sCurrentJsApiVersion)
@@ -144,13 +133,13 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
                 }
                 versionSupplied.lessThan(versionCurrent) -> {
                     activity.runOnUiThread {
-                        showThemedToast(context, context.getString(R.string.update_js_api_version, cardSuppliedDeveloperContact), false)
+                        activity.showSnackbar(context.getString(R.string.update_js_api_version, cardSuppliedDeveloperContact))
                     }
                     versionSupplied.greaterThanOrEqualTo(Version.valueOf(AnkiDroidJsAPIConstants.sMinimumJsApiVersion))
                 }
                 else -> {
                     activity.runOnUiThread {
-                        showThemedToast(context, context.getString(R.string.valid_js_api_version, cardSuppliedDeveloperContact), false)
+                        activity.showSnackbar(context.getString(R.string.valid_js_api_version, cardSuppliedDeveloperContact))
                     }
                     false
                 }
@@ -173,7 +162,7 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
     }
 
     @JavascriptInterface
-    fun init(jsonData: String?): String {
+    fun init(jsonData: String): String {
         val data: JSONObject
         var apiStatusJson = ""
         try {
@@ -183,11 +172,11 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
             if (requireApiVersion(cardSuppliedApiVersion, cardSuppliedDeveloperContact)) {
                 enableJsApi()
             }
-            apiStatusJson = JSONObject.fromMap(mJsApiListMap).toString()
+            apiStatusJson = JSONObject(mJsApiListMap as Map<String, Boolean>).toString()
         } catch (j: JSONException) {
             Timber.w(j)
             activity.runOnUiThread {
-                showThemedToast(context, context.getString(R.string.invalid_json_data, j.localizedMessage), false)
+                activity.showSnackbar(context.getString(R.string.invalid_json_data, j.localizedMessage))
             }
         }
         return apiStatusJson
@@ -395,22 +384,15 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
     @JavascriptInterface
     fun ankiSearchCard(query: String?) {
         val intent = Intent(context, CardBrowser::class.java)
-        val currentCardId: Long = currentCard.id
+        val currentCardId: CardId = currentCard.id
         intent.putExtra("currentCard", currentCardId)
         intent.putExtra("search_query", query)
-        activity.startActivityForResultWithAnimation(intent, NavigationDrawerActivity.REQUEST_BROWSE_CARDS, ActivityTransitionAnimation.Direction.START)
+        activity.startActivityWithAnimation(intent, ActivityTransitionAnimation.Direction.START)
     }
 
     @JavascriptInterface
     fun ankiIsActiveNetworkMetered(): Boolean {
-        return try {
-            val cm = AnkiDroidApp.getInstance().applicationContext
-                .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            cm.isActiveNetworkMetered
-        } catch (e: Exception) {
-            Timber.w(e, "Exception obtaining metered connection - assuming metered connection")
-            true
-        }
+        return NetworkUtils.isActiveNetworkMetered()
     }
 
     // Know if {{tts}} is supported - issue #10443
@@ -477,52 +459,53 @@ open class AnkiDroidJsAPI(private val activity: AbstractFlashcardViewer) {
 
     @JavascriptInterface
     fun ankiSearchCardWithCallback(query: String) {
-        val task = SearchCards(query, SortOrder.UseCollectionOrdering(), 0, 0, 0)
-        val listener = SearchCardListener(activity.webView!!, context)
+        val cards = try {
+            runBlocking {
+                searchForCards(query, SortOrder.UseCollectionOrdering(), true)
+            }
+        } catch (exc: Exception) {
+            activity.webView!!.evaluateJavascript(
+                "console.log('${context.getString(R.string.search_card_js_api_no_results)}')",
+                null
+            )
+            return
+        }
+        val searchResult: MutableList<String> = ArrayList()
+        for (s in cards) {
+            val jsonObject = JSONObject()
+            val fieldsData = s.card.note().fields
+            val fieldsName = s.card.model().fieldsNames
+
+            val noteId = s.card.note().id
+            val cardId = s.card.id
+            jsonObject.put("cardId", cardId)
+            jsonObject.put("noteId", noteId)
+
+            val jsonFieldObject = JSONObject()
+            fieldsName.zip(fieldsData).forEach { pair ->
+                jsonFieldObject.put(pair.component1(), pair.component2())
+            }
+            jsonObject.put("fieldsData", jsonFieldObject)
+
+            searchResult.add(jsonObject.toString())
+        }
+
+        // quote result to prevent JSON injection attack
+        val jsonEncodedString = org.json.JSONObject.quote(searchResult.toString())
         activity.runOnUiThread {
-            TaskManager.launchCollectionTask(task, listener)
-        }
-    }
-
-    class SearchCardListener(private val webView: WebView, private val context: Context) : TaskListener<List<CardBrowser.CardCache>, SearchService.SearchCardsResult>() {
-        override fun onPreExecute() {
-            // nothing to do
-        }
-
-        override fun onPostExecute(result: SearchService.SearchCardsResult) {
-            val searchResult: MutableList<String> = ArrayList()
-
-            if (result.result == null) {
-                webView.evaluateJavascript("console.log('${context.getString(R.string.search_card_js_api_no_results)}')", null)
-            }
-
-            for (s in result.result!!) {
-                val jsonObject = JSONObject()
-                val fieldsData = s.card.note().fields
-                val fieldsName = s.card.model().fieldsNames
-
-                val noteId = s.card.note().id
-                val cardId = s.card.id
-                jsonObject.put("cardId", cardId)
-                jsonObject.put("noteId", noteId)
-
-                val jsonFieldObject = JSONObject()
-                fieldsName.zip(fieldsData).forEach { pair ->
-                    jsonFieldObject.put(pair.component1(), pair.component2())
-                }
-                jsonObject.put("fieldsData", jsonFieldObject)
-
-                searchResult.add(jsonObject.toString())
-            }
-
-            // quote result to prevent JSON injection attack
-            val jsonEncodedString = org.json.JSONObject.quote(searchResult.toString())
-            webView.evaluateJavascript("ankiSearchCard($jsonEncodedString)", null)
+            activity.webView!!.evaluateJavascript("ankiSearchCard($jsonEncodedString)", null)
         }
     }
 
     @JavascriptInterface
     open fun ankiSetCardDue(days: Int): Boolean {
+        // the function is overridden in Reviewer.kt
+        // it may be called in previewer so just return true value here
+        return true
+    }
+
+    @JavascriptInterface
+    open fun ankiResetProgress(): Boolean {
         // the function is overridden in Reviewer.kt
         // it may be called in previewer so just return true value here
         return true

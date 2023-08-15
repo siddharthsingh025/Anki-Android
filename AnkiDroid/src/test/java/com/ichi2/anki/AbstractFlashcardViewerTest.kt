@@ -2,7 +2,6 @@
 
 package com.ichi2.anki
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.webkit.RenderProcessGoneDetail
@@ -17,24 +16,27 @@ import com.ichi2.anki.AbstractFlashcardViewer.WebViewSignalParserUtils.RELINQUIS
 import com.ichi2.anki.AbstractFlashcardViewer.WebViewSignalParserUtils.SHOW_ANSWER
 import com.ichi2.anki.AbstractFlashcardViewer.WebViewSignalParserUtils.SIGNAL_NOOP
 import com.ichi2.anki.AbstractFlashcardViewer.WebViewSignalParserUtils.TYPE_FOCUS
+import com.ichi2.anki.AbstractFlashcardViewer.WebViewSignalParserUtils.getSignalFromUrl
 import com.ichi2.anki.cardviewer.ViewerCommand
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.anki.reviewer.AutomaticAnswer
 import com.ichi2.anki.reviewer.AutomaticAnswerAction
 import com.ichi2.anki.reviewer.AutomaticAnswerSettings
 import com.ichi2.anki.servicelayer.LanguageHintService
 import com.ichi2.libanki.StdModels
-import com.ichi2.libanki.Tuple
 import com.ichi2.testutils.AnkiAssert.assertDoesNotThrow
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.*
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.runner.RunWith
 import org.mockito.Mockito.*
 import org.robolectric.Robolectric
 import org.robolectric.android.controller.ActivityController
+import org.robolectric.shadows.ShadowToast
 import java.util.*
 import java.util.stream.Stream
 
@@ -44,7 +46,6 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
     class NonAbstractFlashcardViewer : AbstractFlashcardViewer() {
         var answered: Int? = null
         private var mLastTime = 0
-        override fun setTitle() {}
         override fun performReload() {
             // intentionally blank
         }
@@ -58,41 +59,25 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
 
         override val elapsedRealTime: Long
             get() {
-                mLastTime += AnkiDroidApp.getSharedPrefs(baseContext).getInt(DOUBLE_TAP_TIME_INTERVAL, DEFAULT_DOUBLE_TAP_TIME_INTERVAL)
+                mLastTime += baseContext.sharedPrefs()
+                    .getInt(DOUBLE_TAP_TIME_INTERVAL, DEFAULT_DOUBLE_TAP_TIME_INTERVAL)
                 return mLastTime.toLong()
             }
         val hintLocale: String?
             get() {
-                val imeHintLocales = mAnswerField!!.imeHintLocales ?: return null
+                val imeHintLocales = answerField!!.imeHintLocales ?: return null
                 return imeHintLocales.toLanguageTags()
             }
 
         fun hasAutomaticAnswerQueued(): Boolean {
-            return mAutomaticAnswer.timeoutHandler.hasMessages(0)
+            return automaticAnswer.timeoutHandler.hasMessages(0)
         }
     }
 
-    /***
-     * @param testcase A tuple with string and int as a testcase. The string is the input url and
-     *                 the int is the actual answer.
-     */
     @ParameterizedTest
-    @MethodSource("testcaseProvider")
-    fun getSignalFromUrlTest(testcase: Tuple<String, Int>) {
-        assertEquals(testcase.first, testcase.second)
-    }
-
-    fun testcaseProvider(): Stream<Tuple<String, Int>> {
-        return Stream.of(
-            Tuple("signal:show_answer", SHOW_ANSWER),
-            Tuple("signal:typefocus", TYPE_FOCUS),
-            Tuple("signal:relinquishFocus", RELINQUISH_FOCUS),
-            Tuple("signal:answer_ease1", ANSWER_ORDINAL_1),
-            Tuple("signal:answer_ease2", ANSWER_ORDINAL_2),
-            Tuple("signal:answer_ease3", ANSWER_ORDINAL_3),
-            Tuple("signal:answer_ease4", ANSWER_ORDINAL_4),
-            Tuple("signal:answer_ease0", SIGNAL_NOOP)
-        )
+    @MethodSource("getSignalFromUrlTest_args")
+    fun getSignalFromUrlTest(url: String, signal: Int) {
+        assertEquals(getSignalFromUrl(url), signal)
     }
 
     @Test
@@ -116,8 +101,7 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
     }
 
     @Test
-    @Suppress("deprecation") // onActivityResult
-    fun testEditingCardChangesTypedAnswer() {
+    fun testEditingCardChangesTypedAnswer() = runTest {
         // 7363
         addNoteUsingBasicTypedModel("Hello", "World")
 
@@ -127,12 +111,12 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
 
         waitForAsyncTasksToComplete()
 
-        AbstractFlashcardViewer.editorCard = viewer.mCurrentCard
+        AbstractFlashcardViewer.editorCard = viewer.currentCard
 
-        val note = viewer.mCurrentCard!!.note()
+        val note = viewer.currentCard!!.note()
         note.setField(1, "David")
 
-        viewer.onActivityResult(AbstractFlashcardViewer.EDIT_CURRENT_CARD, Activity.RESULT_OK, Intent())
+        viewer.saveEditedCard()
 
         waitForAsyncTasksToComplete()
 
@@ -140,8 +124,7 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
     }
 
     @Test
-    @Suppress("deprecation") // onActivityResult
-    fun testEditingCardChangesTypedAnswerOnDisplayAnswer() {
+    fun testEditingCardChangesTypedAnswerOnDisplayAnswer() = runTest {
         // 7363
         addNoteUsingBasicTypedModel("Hello", "World")
 
@@ -155,12 +138,12 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
 
         waitForAsyncTasksToComplete()
 
-        AbstractFlashcardViewer.editorCard = viewer.mCurrentCard
+        AbstractFlashcardViewer.editorCard = viewer.currentCard
 
-        val note = viewer.mCurrentCard!!.note()
+        val note = viewer.currentCard!!.note()
         note.setField(1, "David")
 
-        viewer.onActivityResult(AbstractFlashcardViewer.EDIT_CURRENT_CARD, Activity.RESULT_OK, Intent())
+        viewer.saveEditedCard()
 
         waitForAsyncTasksToComplete()
 
@@ -177,11 +160,11 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
         val viewer: NonAbstractFlashcardViewer = getViewer(true)
 
         assertThat("Displaying question", viewer.isDisplayingAnswer, equalTo(false))
-        viewer.executeCommand(ViewerCommand.COMMAND_FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
 
         assertThat("Displaying answer", viewer.isDisplayingAnswer, equalTo(true))
 
-        viewer.executeCommand(ViewerCommand.COMMAND_FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
 
         assertThat(viewer.answered, notNullValue())
     }
@@ -192,7 +175,7 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
     }
 
     @Test
-    fun typedLanguageIsSet() {
+    fun typedLanguageIsSet() = runTest {
         val withLanguage = StdModels.BASIC_TYPING_MODEL.add(col, "a")
         val normal = StdModels.BASIC_TYPING_MODEL.add(col, "b")
         val typedField = 1 // BACK
@@ -212,32 +195,40 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
 
     @Test
     fun automaticAnswerDisabledProperty() {
-        val controller = getViewerController(true)
+        val controller = getViewerController(true, false)
         val viewer = controller.get()
-        assertThat("not disabled initially", viewer.mAutomaticAnswer.isDisabled, equalTo(false))
+        assertThat("not disabled initially", viewer.automaticAnswer.isDisabled, equalTo(false))
         controller.pause()
-        assertThat("disabled after pause", viewer.mAutomaticAnswer.isDisabled, equalTo(true))
+        assertThat("disabled after pause", viewer.automaticAnswer.isDisabled, equalTo(true))
         controller.resume()
-        assertThat("enabled after resume", viewer.mAutomaticAnswer.isDisabled, equalTo(false))
+        assertThat("enabled after resume", viewer.automaticAnswer.isDisabled, equalTo(false))
     }
 
     @Test
     fun noAutomaticAnswerAfterRenderProcessGoneAndPaused_issue9632() {
-        val controller = getViewerController(true)
+        val controller = getViewerController(true, false)
         val viewer = controller.get()
-        viewer.mAutomaticAnswer = AutomaticAnswer(viewer, AutomaticAnswerSettings(AutomaticAnswerAction.BURY_CARD, true, 5, 5))
-        viewer.executeCommand(ViewerCommand.COMMAND_SHOW_ANSWER)
+        viewer.automaticAnswer = AutomaticAnswer(viewer, AutomaticAnswerSettings(AutomaticAnswerAction.BURY_CARD, true, 5, 5))
+        viewer.executeCommand(ViewerCommand.SHOW_ANSWER)
         assertThat("messages after flipping card", viewer.hasAutomaticAnswerQueued(), equalTo(true))
         controller.pause()
-        assertThat("disabled after pause", viewer.mAutomaticAnswer.isDisabled, equalTo(true))
+        assertThat("disabled after pause", viewer.automaticAnswer.isDisabled, equalTo(true))
         assertThat("no auto answer after pause", viewer.hasAutomaticAnswerQueued(), equalTo(false))
         viewer.mOnRenderProcessGoneDelegate.onRenderProcessGone(viewer.webView!!, mock(RenderProcessGoneDetail::class.java))
         assertThat("no auto answer after onRenderProcessGone when paused", viewer.hasAutomaticAnswerQueued(), equalTo(false))
     }
 
+    @Test
+    fun shortcutShowsToastOnFinish() = runTest {
+        val viewer: NonAbstractFlashcardViewer = getViewer(true, true)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        assertEquals(getResourceString(R.string.studyoptions_congrats_finished), ShadowToast.getTextOfLatestToast())
+    }
+
     private fun showNextCard(viewer: NonAbstractFlashcardViewer) {
-        viewer.executeCommand(ViewerCommand.COMMAND_FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
-        viewer.executeCommand(ViewerCommand.COMMAND_FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
+        viewer.executeCommand(ViewerCommand.FLIP_OR_ANSWER_BETTER_THAN_RECOMMENDED)
     }
 
     @get:CheckResult
@@ -246,17 +237,26 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
 
     @CheckResult
     private fun getViewer(addCard: Boolean): NonAbstractFlashcardViewer {
-        return getViewerController(addCard).get()
+        return getViewer(addCard, false)
     }
 
     @CheckResult
-    private fun getViewerController(addCard: Boolean): ActivityController<NonAbstractFlashcardViewer> {
+    private fun getViewer(addCard: Boolean, startedWithShortcut: Boolean): NonAbstractFlashcardViewer {
+        return getViewerController(addCard, startedWithShortcut).get()
+    }
+
+    @CheckResult
+    private fun getViewerController(addCard: Boolean, startedWithShortcut: Boolean): ActivityController<NonAbstractFlashcardViewer> {
         if (addCard) {
             val n = col.newNote()
             n.setField(0, "a")
             col.addNote(n)
         }
-        val multimediaController = Robolectric.buildActivity(NonAbstractFlashcardViewer::class.java, Intent())
+        val intent = Intent()
+        if (startedWithShortcut) {
+            intent.putExtra(NavigationDrawerActivity.EXTRA_STARTED_WITH_SHORTCUT, true)
+        }
+        val multimediaController = Robolectric.buildActivity(NonAbstractFlashcardViewer::class.java, intent)
             .create().start().resume().visible()
         saveControllerForCleanup(multimediaController)
         val viewer = multimediaController.get()
@@ -267,5 +267,20 @@ class AbstractFlashcardViewerTest : RobolectricTest() {
         advanceRobolectricLooperWithSleep()
         advanceRobolectricLooperWithSleep()
         return multimediaController
+    }
+    companion object {
+        @JvmStatic // required for @MethodSource
+        fun getSignalFromUrlTest_args(): Stream<Arguments> {
+            return Stream.of(
+                Arguments.of("signal:show_answer", SHOW_ANSWER),
+                Arguments.of("signal:typefocus", TYPE_FOCUS),
+                Arguments.of("signal:relinquishFocus", RELINQUISH_FOCUS),
+                Arguments.of("signal:answer_ease1", ANSWER_ORDINAL_1),
+                Arguments.of("signal:answer_ease2", ANSWER_ORDINAL_2),
+                Arguments.of("signal:answer_ease3", ANSWER_ORDINAL_3),
+                Arguments.of("signal:answer_ease4", ANSWER_ORDINAL_4),
+                Arguments.of("signal:answer_ease0", SIGNAL_NOOP)
+            )
+        }
     }
 }

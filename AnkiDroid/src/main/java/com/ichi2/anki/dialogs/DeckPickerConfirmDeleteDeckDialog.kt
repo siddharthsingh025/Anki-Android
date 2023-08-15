@@ -18,11 +18,11 @@ package com.ichi2.anki.dialogs
 
 import android.app.Dialog
 import android.os.Bundle
-import com.afollestad.materialdialogs.DialogAction
-import com.afollestad.materialdialogs.MaterialDialog
+import androidx.appcompat.app.AlertDialog
 import com.ichi2.anki.DeckPicker
 import com.ichi2.anki.R
 import com.ichi2.anki.analytics.AnalyticsDialogFragment
+import com.ichi2.libanki.DeckId
 import com.ichi2.utils.BundleUtils.requireLong
 
 class DeckPickerConfirmDeleteDeckDialog : AnalyticsDialogFragment() {
@@ -30,25 +30,22 @@ class DeckPickerConfirmDeleteDeckDialog : AnalyticsDialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         super.onCreate(savedInstanceState)
-        val res = resources
-        return MaterialDialog.Builder(requireActivity())
-            .title(res.getString(R.string.delete_deck_title))
-            .content(requireArguments().getString("dialogMessage")!!)
-            .iconAttr(R.attr.dialogErrorIcon)
-            .positiveText(R.string.dialog_positive_delete)
-            .negativeText(R.string.dialog_cancel)
-            .cancelable(true)
-            .onPositive { _: MaterialDialog?, _: DialogAction? ->
-                (activity as DeckPicker?)!!.deleteDeck(deckId)
-                (activity as DeckPicker?)!!.dismissAllDialogFragments()
+        return AlertDialog.Builder(requireActivity())
+            .setTitle(R.string.delete_deck_title)
+            .setMessage(requireArguments().getString("dialogMessage"))
+            .setIconAttribute(R.attr.dialogErrorIcon)
+            .setPositiveButton(R.string.dialog_positive_delete) { _, _ ->
+                (activity as DeckPicker).deleteDeck(deckId)
+                (activity as DeckPicker).dismissAllDialogFragments()
             }
-            .onNegative { _: MaterialDialog?, _: DialogAction? -> (activity as DeckPicker?)!!.dismissAllDialogFragments() }
-            .build()
+            .setNegativeButton(R.string.dialog_cancel) { _, _ ->
+                (activity as DeckPicker).dismissAllDialogFragments()
+            }
+            .create()
     }
 
     companion object {
-        @JvmStatic
-        fun newInstance(dialogMessage: String?, deckId: Long): DeckPickerConfirmDeleteDeckDialog {
+        fun newInstance(dialogMessage: String?, deckId: DeckId): DeckPickerConfirmDeleteDeckDialog {
             val f = DeckPickerConfirmDeleteDeckDialog()
             val args = Bundle()
             args.putString("dialogMessage", dialogMessage)

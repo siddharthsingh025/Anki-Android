@@ -4,45 +4,47 @@ package com.ichi2.libanki
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.ichi2.anki.RobolectricTest
-import com.ichi2.utils.JSONException
-import com.ichi2.utils.KotlinCleanup
+import net.ankiweb.rsdroid.BackendFactory
+import net.ankiweb.rsdroid.RustCleanup
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.*
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
-@KotlinCleanup("is -> equalTo")
+
+@RustCleanup("remove")
 @RunWith(AndroidJUnit4::class)
 class ClozeTest : RobolectricTest() {
     @Test
     fun testCloze() {
-        val d = col
-        var f = d.newNote(d.models.byName("Cloze"))
-        try {
-            val name = f.model().getString("name")
-            assertEquals("Cloze", name)
-        } catch (e: JSONException) {
-            fail()
+        if (!BackendFactory.defaultLegacySchema) {
+            // cloze generation is exercised by the backend tests already, and also in
+            // ModelTest.kt
+            return
         }
+        val d = col
+        var f = d.newNote(d.models.byName("Cloze")!!)
+        val name = f.model().getString("name")
+        assertEquals("Cloze", name)
         // a cloze model with no clozes is not empty
         f.setItem("Text", "nothing")
-        assertThat(d.addNote(f), `is`(greaterThan(0)))
+        assertThat(d.addNote(f), greaterThan(0))
         val card = f.cards()[0]
         assertTrue(card.isEmpty)
         // try with one cloze
-        f = d.newNote(d.models.byName("Cloze"))
+        f = d.newNote(d.models.byName("Cloze")!!)
         f.setItem("Text", "hello {{c1::world}}")
         assertEquals(1, d.addNote(f))
         assertThat(f.firstCard().q(), containsString("hello <span class=cloze>[...]</span>"))
         assertThat(f.firstCard().a(), containsString("hello <span class=cloze>world</span>"))
         // and with a comment
-        f = d.newNote(d.models.byName("Cloze"))
+        f = d.newNote(d.models.byName("Cloze")!!)
         f.setItem("Text", "hello {{c1::world::typical}}")
         assertEquals(1, d.addNote(f))
         assertThat(f.firstCard().q(), containsString("<span class=cloze>[typical]</span>"))
         assertThat(f.firstCard().a(), containsString("<span class=cloze>world</span>"))
         // and with two clozes
-        f = d.newNote(d.models.byName("Cloze"))
+        f = d.newNote(d.models.byName("Cloze")!!)
         f.setItem("Text", "hello {{c1::world}} {{c2::bar}}")
         assertEquals(2, d.addNote(f))
         val c1 = f.firstCard()
@@ -53,7 +55,7 @@ class ClozeTest : RobolectricTest() {
         assertThat(c2.a(), containsString("world <span class=cloze>bar</span>"))
         // if there are multiple answers for a single cloze, they are given in a
         // list
-        f = d.newNote(d.models.byName("Cloze"))
+        f = d.newNote(d.models.byName("Cloze")!!)
         f.setItem("Text", "a {{c1::b}} {{c1::c}}")
         assertEquals(1, d.addNote(f))
         assertThat(f.firstCard().a(), containsString("<span class=cloze>b</span> <span class=cloze>c</span>"))
@@ -75,6 +77,7 @@ class ClozeTest : RobolectricTest() {
             """.trimIndent()
         )
         f.flush()
+        if (!BackendFactory.defaultLegacySchema) { f.id = 0 }
         assertEquals(1, d.addNote(f))
         assertThat(f.firstCard().q(), containsString("Cloze with <span class=cloze>[...]</span>"))
         assertThat(f.firstCard().a(), containsString("Cloze with <span class=cloze>multi-line\nstring</span>"))
@@ -87,6 +90,7 @@ class ClozeTest : RobolectricTest() {
             """.trimIndent()
         )
         f.flush()
+        if (!BackendFactory.defaultLegacySchema) { f.id = 0 }
         assertEquals(1, d.addNote(f))
         assertThat(f.firstCard().q(), containsString("<p>Cloze in html tag with <span class=cloze>[...]</span>"))
         assertThat(f.firstCard().a(), containsString("<p>Cloze in html tag with <span class=cloze>multi-line\nstring</span>"))
@@ -101,6 +105,7 @@ class ClozeTest : RobolectricTest() {
             """.trimIndent()
         )
         f.flush()
+        if (!BackendFactory.defaultLegacySchema) { f.id = 0 }
         assertEquals(1, d.addNote(f))
         assertThat(
             f.firstCard().q(),

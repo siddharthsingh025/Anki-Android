@@ -16,6 +16,7 @@
 package com.ichi2.libanki.sched
 
 import com.ichi2.libanki.Collection
+import com.ichi2.libanki.DeckId
 import com.ichi2.libanki.Decks
 import java.lang.UnsupportedOperationException
 import java.util.*
@@ -32,12 +33,14 @@ import java.util.*
  * [processChildren] should be called if the children of this node are modified.
  */
 abstract class AbstractDeckTreeNode(
-    val col: Collection,
     /**
      * @return The full deck name, e.g. "A::B::C"
      */
     val fullDeckName: String,
-    val did: Long
+    val did: DeckId,
+    // only set when new backend active
+    open var collapsed: Boolean = false,
+    open var filtered: Boolean = false
 ) : Comparable<AbstractDeckTreeNode> {
     private val mNameComponents: Array<String>
 
@@ -63,12 +66,14 @@ abstract class AbstractDeckTreeNode(
     /** Line representing this string without its children. Used in timbers only.  */
     protected open fun toStringLine(): String? {
         return String.format(
-            Locale.US, "%s, %d",
-            fullDeckName, did
+            Locale.US,
+            "%s, %d",
+            fullDeckName,
+            did
         )
     }
 
-    abstract fun processChildren(children: List<AbstractDeckTreeNode>, addRev: Boolean)
+    abstract fun processChildren(col: Collection, children: List<AbstractDeckTreeNode>, addRev: Boolean)
 
     override fun toString(): String {
         val buf = StringBuffer()
@@ -128,19 +133,19 @@ abstract class AbstractDeckTreeNode(
     }
 
     /* Number of new cards to see today known to be in this deck and its descendants. The number to show to user*/
-    open var newCount: Int = 0
+    open val newCount: Int
         get() {
             throw UnsupportedOperationException()
         }
 
     /* Number of lrn cards (or repetition) to see today known to be in this deck and its descendants. The number to show to user*/
-    open var lrnCount: Int = 0
+    open val lrnCount: Int
         get() {
             throw UnsupportedOperationException()
         }
 
     /* Number of rev cards to see today known to be in this deck and its descendants. The number to show to user*/
-    open var revCount: Int = 0
+    open val revCount: Int
         get() {
             throw UnsupportedOperationException()
         }

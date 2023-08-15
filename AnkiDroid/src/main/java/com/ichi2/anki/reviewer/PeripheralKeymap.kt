@@ -20,6 +20,7 @@ import android.content.SharedPreferences
 import android.view.KeyEvent
 import com.ichi2.anki.AnkiDroidApp
 import com.ichi2.anki.cardviewer.ViewerCommand
+import com.ichi2.anki.preferences.sharedPrefs
 import com.ichi2.anki.reviewer.Binding.Companion.key
 import com.ichi2.anki.reviewer.CardSide.Companion.fromAnswer
 import com.ichi2.anki.reviewer.MappableBinding.Companion.fromPreference
@@ -31,7 +32,7 @@ class PeripheralKeymap(reviewerUi: ReviewerUi, commandProcessor: ViewerCommand.C
     private val mKeyMap: KeyMap
     private var mHasSetup = false
     fun setup() {
-        val preferences = AnkiDroidApp.getSharedPrefs(AnkiDroidApp.getInstance())
+        val preferences = AnkiDroidApp.instance.sharedPrefs()
         setup(preferences)
     }
 
@@ -55,7 +56,9 @@ class PeripheralKeymap(reviewerUi: ReviewerUi, commandProcessor: ViewerCommand.C
     fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         return if (!mHasSetup || event.repeatCount > 0) {
             false
-        } else mKeyMap.onKeyUp(keyCode, event)
+        } else {
+            mKeyMap.onKeyUp(keyCode, event)
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")

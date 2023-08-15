@@ -19,23 +19,12 @@ import android.annotation.SuppressLint
 import com.ichi2.libanki.utils.Time
 import com.ichi2.utils.KotlinCleanup
 import java.util.*
-import kotlin.jvm.JvmOverloads
 
-@KotlinCleanup("IDE lint")
-open class MockTime : Time {
-    /** Number of milliseconds between each call.  */
-    private val mStep: Int
-
-    /** Time since epoch in MS.  */
-    protected var time: Long
+/** @param [step] Number of milliseconds between each call.
+ * @param [initTime]: Time since epoch in MS. */
+open class MockTime(initTime: Long, private val step: Int = 0) : Time() {
+    protected var time = initTime
         private set
-    /** A clock at time Time, each call advance by step ms. */
-    /** A clock at time Time, only changed explicitly */
-    @JvmOverloads
-    constructor(time: Long, step: Int = 0) {
-        this.time = time
-        mStep = step
-    }
 
     /** create a mock time whose initial value is this date. Month is 0-based, in order to stay close to calendar. MS are 0. */
     constructor(
@@ -47,25 +36,25 @@ open class MockTime : Time {
         second: Int,
         milliseconds: Int,
         step: Int
-    ) {
-        time = timeStamp(year, month, date, hourOfDay, minute, second, milliseconds)
-        mStep = step
-    }
+    ) : this(
+        timeStamp(year, month, date, hourOfDay, minute, second, milliseconds),
+        step
+    )
 
     /** Time in millisecond since epoch.  */
     override fun intTimeMS(): Long {
         val time = time
-        this.time += mStep.toLong()
+        this.time += step.toLong()
         return time
     }
 
     /** Add ms milliseconds  */
-    fun addMs(ms: Long) {
+    private fun addMs(ms: Long) {
         time += ms
     }
 
     /** add s seconds  */
-    fun addS(s: Long) {
+    private fun addS(s: Long) {
         addMs(s * 1000L)
     }
 
@@ -75,7 +64,7 @@ open class MockTime : Time {
     }
 
     /** add h hours */
-    fun addH(h: Long) {
+    private fun addH(h: Long) {
         addM(h * 60)
     }
 
@@ -95,7 +84,6 @@ open class MockTime : Time {
          * @param second, From 0 to 59
          * @return the time stamp of this instant in GMT calendar
          */
-        @JvmStatic
         @KotlinCleanup("After Kotlin Conversion, use default argument and remove this")
         fun timeStamp(year: Int, month: Int, date: Int, hourOfDay: Int, minute: Int, second: Int): Long {
             return timeStamp(year, month, date, hourOfDay, minute, second, 0)
@@ -112,7 +100,6 @@ open class MockTime : Time {
          * @param milliseconds, from 0 to 999
          * @return the time stamp of this instant in GMT calendar
          */
-        @JvmStatic
         @SuppressLint("DirectGregorianInstantiation")
         fun timeStamp(year: Int, month: Int, date: Int, hourOfDay: Int, minute: Int, second: Int, milliseconds: Int): Long {
             val timeZone = TimeZone.getTimeZone("GMT")
